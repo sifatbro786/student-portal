@@ -72,3 +72,24 @@ export const getStudentScope = cache(async () => {
         batchId: s.batch,
     };
 });
+
+/**
+ * Route-handler variant: same DB-derived scope, but returns null instead of
+ * redirecting (file routes answer 404 — SEC-10).
+ */
+export const findStudentScope = cache(async () => {
+    const user = await getCurrentUser();
+    if (!user || user.role !== "student" || user.mustChangePassword) return null;
+    const s = await Student.findOne({ user: user.id, status: "active" })
+        .select("studentId fullName class batch")
+        .lean();
+    if (!s) return null;
+    return {
+        user,
+        studentObjectId: s._id,
+        studentId: s.studentId,
+        fullName: s.fullName,
+        classId: s.class,
+        batchId: s.batch,
+    };
+});

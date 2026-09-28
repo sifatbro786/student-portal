@@ -93,3 +93,31 @@ export async function processMailQueue({ limit = 20 } = {}) {
     if (sent || failed) log.info("mail.batch", { sent, failed });
     return { sent, failed };
 }
+
+/** Queue health + SMTP config, for `npm run cron` boot and `npm run mail:test`. */
+export async function mailStatus() {
+    await connectDB();
+    const rows = await MailJob.aggregate([{ $group: { _id: "$status", n: { $sum: 1 } } }]);
+    const counts = Object.fromEntries(rows.map((r) => [r._id, r.n]));
+    const lastFailures = await MailJob.find({ lastError: trusted({ $exists: true }) })
+        .sort({ updatedAt: -1 })
+        .limit(5)
+        .select("template status attempts lastError updatedAt")
+        .lean();
+    return { counts, smtpConfigured: !!getTransport(), lastFailures };
+}
+
+/** Log in to the SMTP server without sending anything. Throws with the server's reason. */
+export async function verifySmtp() {
+    const t = getTransport();
+    if (!t) throw new Error("SMTP_HOST / SMTP_USER / SMTP_PASS are not all set");
+    await t.verify();
+}
+
+/** Send one message immediately (bypasses the queue) — diagnostics only. */
+export async function sendDirect(to, template, data) {
+    const t = getTransport();
+    if (!t) throw new Error("SMTP is not configured");
+    const msg = templates[template](data);
+    return t.sendMail({ from: env().MAIL_FROM ?? env().SMTP_USER, to, ...msg });
+}

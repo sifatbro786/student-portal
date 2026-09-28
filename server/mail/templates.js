@@ -69,4 +69,15 @@ ${d.phone ? `<p style="color:#6b625a">Questions? Call or WhatsApp ${esc(d.phone)
         }),
         text: `Welcome, ${d.firstName}. Student ID: ${d.studentId}. Sign in with ${d.email} at ${d.loginUrl}. Collect your temporary password from the office.`,
     }),
+
+    "notice.broadcast": (d) => ({
+        subject: `Notice: ${d.title}`,
+        html: layout({
+            preheader: d.excerpt,
+            title: d.title,
+            body: `<p>${esc(d.excerpt)}</p>
+<p style="margin-top:20px"><a href="${esc(d.link)}" style="background:#7a1e2b;color:#f6f2ea;padding:10px 18px;text-decoration:none;display:inline-block">Read the full notice</a></p>`,
+        }),
+        text: `${d.title}\n\n${d.excerpt}\n\nRead more: ${d.link}`,
+    }),
 };

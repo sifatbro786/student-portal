@@ -1,10 +1,11 @@
 import { requireAuth } from "@/server/auth/guards.js";
 import { Logo } from "@/components/ui/Logo.js";
 import { AccountBar } from "@/components/shell/AccountBar.js";
+import { StudentNav } from "@/components/student/StudentNav.js";
 
 export const metadata = { robots: { index: false, follow: false } };
 
-// Mobile-first shell; bottom navigation arrives in P4.5.
+// Mobile-first shell (PRD §13): bottom tab bar on phones.
 export default async function StudentLayout({ children }) {
     const user = await requireAuth(["student"]);
     return (
@@ -14,8 +15,12 @@ export default async function StudentLayout({ children }) {
                     <Logo href="/dashboard" />
                     <AccountBar user={user} />
                 </div>
+                <StudentNav variant="tabs" />
             </header>
-            <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-6">{children}</main>
+            <main className="mx-auto w-full max-w-3xl flex-1 px-4 pt-6 pb-28 sm:pb-12">
+                {children}
+            </main>
+            <StudentNav variant="bottom" />
         </div>
     );
 }

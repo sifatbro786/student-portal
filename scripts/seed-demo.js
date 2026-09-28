@@ -1,0 +1,500 @@
+// Demo data for local testing.
+//   npm run seed:demo              → create/refresh demo data
+//   npm run seed:demo -- --reset   → remove all demo data (classes/batches are kept)
+// Refuses to run when NODE_ENV=production unless you add --allow-production.
+//
+// Everything goes through the real services (validation, files, counters, audit),
+// so the data looks exactly like data created from the admin panel.
+// Demo people use the reserved ".test" domain — no email can ever be delivered.
+import sharp from "sharp";
+import mongoose from "mongoose";
+import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
+import { connectDB, disconnectDB, trusted } from "../server/db.js";
+import { hashPassword } from "../server/auth/password.js";
+import { User } from "../server/models/User.js";
+import { Student } from "../server/models/Student.js";
+import { Admission } from "../server/models/Admission.js";
+import { Notice } from "../server/models/Notice.js";
+import { Material } from "../server/models/Material.js";
+import { ClassModel } from "../server/models/Class.js";
+import { Batch } from "../server/models/Batch.js";
+import { MailJob } from "../server/models/Jobs.js";
+import { createStudent, purgeStudent, setStudentActive } from "../server/services/students.js";
+import {
+    submitAdmission,
+    reviewAdmission,
+    deleteAdmission,
+} from "../server/services/admissions.js";
+import { saveNotice, deleteNotice } from "../server/services/notices.js";
+import { saveMaterial, deleteMaterial } from "../server/services/materials.js";
+
+const DEMO_DOMAIN = "@demo.test";
+const PASSWORD = "Demo@1234";
+const ADMIN_EMAIL = `staff${DEMO_DOMAIN}`;
+const args = new Set(process.argv.slice(2));
+
+if (process.env.NODE_ENV === "production" && !args.has("--allow-production")) {
+    console.error(
+        "\n✗ NODE_ENV=production. Refusing to seed. Use --allow-production if this really is a test database.\n",
+    );
+    process.exit(1);
+}
+
+// ------------------------------------------------------------------ helpers
+const log = (m) => console.log(m);
+
+async function avatar(name, hue) {
+    const initials = name
+        .split(" ")
+        .slice(0, 2)
+        .map((p) => p[0])
+        .join("");
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="600" height="600">
+<rect width="600" height="600" fill="hsl(${hue} 35% 82%)"/>
+<circle cx="300" cy="245" r="120" fill="hsl(${hue} 30% 62%)"/>
+<rect x="120" y="390" width="360" height="260" rx="180" fill="hsl(${hue} 30% 55%)"/>
+<text x="300" y="560" font-family="Georgia" font-size="64" text-anchor="middle" fill="#fff">${initials}</text></svg>`;
+    const buf = await sharp(Buffer.from(svg)).jpeg({ quality: 85 }).toBuffer();
+    return new File([buf], `${initials}.jpg`, { type: "image/jpeg" });
+}
+
+async function pdf(title, sections, pages = 2) {
+    const doc = await PDFDocument.create();
+    const serif = await doc.embedFont(StandardFonts.TimesRoman);
+    const bold = await doc.embedFont(StandardFonts.TimesRomanBold);
+    for (let p = 0; p < pages; p++) {
+        const page = doc.addPage([595, 842]);
+        page.drawText("O LEVEL ENGLISH LANGUAGE  -  TAUHID MOSTAFA", {
+            x: 56,
+            y: 800,
+            size: 9,
+            font: bold,
+            color: rgb(0.48, 0.12, 0.17),
+        });
+        page.drawText(title, { x: 56, y: 760, size: 20, font: bold });
+        let y = 720;
+        for (const [h, body] of sections) {
+            page.drawText(h, { x: 56, y, size: 13, font: bold });
+            y -= 20;
+            for (const line of body) {
+                page.drawText(line, { x: 56, y, size: 11, font: serif, color: rgb(0.2, 0.2, 0.2) });
+                y -= 16;
+            }
+            y -= 14;
+        }
+        page.drawText(`Page ${p + 1} of ${pages}`, { x: 500, y: 40, size: 9, font: serif });
+    }
+    return new File(
+        [Buffer.from(await doc.save())],
+        `${title.replace(/\W+/g, "-").toLowerCase()}.pdf`,
+        { type: "application/pdf" },
+    );
+}
+
+async function routineImage(label) {
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="800"><rect width="1200" height="800" fill="#fbf9f4"/>
+<text x="60" y="110" font-family="Georgia" font-size="56" fill="#7a1e2b">${label}</text>
+${["Fri 9:00 - Paper 1 practice", "Sat 9:00 - Paper 2 reading", "Fri 11:00 - Mock test review"].map((t, i) => `<text x="60" y="${240 + i * 110}" font-family="Arial" font-size="40" fill="#1f1a17">${t}</text>`).join("")}</svg>`;
+    return new File([await sharp(Buffer.from(svg)).png().toBuffer()], "routine.png", {
+        type: "image/png",
+    });
+}
+
+// ------------------------------------------------------------------ reset
+async function reset() {
+    const admin = await User.findOne({ email: ADMIN_EMAIL }).lean();
+    const actor = { id: String(admin?._id ?? new mongoose.Types.ObjectId()), role: "super_admin" };
+    const students = await Student.find({
+        email: trusted({ $regex: `${DEMO_DOMAIN.replace(".", "\\.")}$` }),
+    }).lean();
+    for (const s of students)
+        await purgeStudent(
+            String(s._id),
+            { confirmStudentId: s.studentId, honorAction: "keep" },
+            actor,
+        );
+    const adms = await Admission.find({
+        email: trusted({ $regex: `${DEMO_DOMAIN.replace(".", "\\.")}$` }),
+    }).lean();
+    for (const a of adms) await deleteAdmission(String(a._id), actor);
+    if (admin) {
+        for (const n of await Notice.find({ createdBy: admin._id }).select("_id").lean())
+            await deleteNotice(String(n._id), actor);
+        for (const m of await Material.find({ createdBy: admin._id }).select("_id").lean())
+            await deleteMaterial(String(m._id), actor);
+        await User.deleteOne({ _id: admin._id });
+    }
+    log(
+        `✓ Removed ${students.length} students, ${adms.length} applications, demo notices/materials and the demo admin.`,
+    );
+}
+
+// ------------------------------------------------------------------ seed
+const STRUCTURE = [
+    { name: "Class 8", order: 1 },
+    { name: "Class 9", order: 2 },
+    { name: "Class 10", order: 3 },
+];
+const BATCHES = [
+    { name: "A", days: ["fri"], startTime: "09:00", endTime: "11:00", room: "Dhanmondi 13A" },
+    { name: "B", days: ["sat"], startTime: "09:00", endTime: "11:00", room: "Dhanmondi 13A" },
+    { name: "C", days: ["sun", "tue"], startTime: "17:00", endTime: "19:00", room: "Uttara 2" },
+];
+const STUDENTS = [
+    ["Rafi Hasan", "Class 8", "A"],
+    ["Nabila Karim", "Class 8", "B"],
+    ["Tahmid Chowdhury", "Class 8", "C"],
+    ["Sadia Islam", "Class 9", "A"],
+    ["Arian Mahmud", "Class 9", "A"],
+    ["Maisha Rahman", "Class 9", "B"],
+    ["Ishraq Ahmed", "Class 9", "C"],
+    ["Nusrat Jahan", "Class 10", "A"],
+    ["Farhan Kabir", "Class 10", "B"],
+    ["Samiha Haque", "Class 10", "B"],
+    ["Adnan Sarkar", "Class 10", "C"],
+    ["Lamia Sultana", "Class 10", "C"],
+];
+
+async function seed() {
+    const started = new Date();
+
+    // demo admin (plain admin role — handy for testing permissions)
+    let admin = await User.findOne({ email: ADMIN_EMAIL });
+    if (!admin) {
+        admin = await User.create({
+            email: ADMIN_EMAIL,
+            name: "Demo Staff",
+            role: "admin",
+            passwordHash: await hashPassword(PASSWORD),
+            mustChangePassword: false,
+        });
+    }
+    const actor = { id: String(admin._id), role: "admin" };
+
+    // classes + batches (upsert; never deleted by --reset)
+    const ids = {};
+    for (const c of STRUCTURE) {
+        const cls = await ClassModel.findOneAndUpdate(
+            { name: c.name },
+            { $setOnInsert: { name: c.name, order: c.order, isActive: true } },
+            { upsert: true, returnDocument: "after" },
+        ).lean();
+        ids[c.name] = { id: String(cls._id), batches: {} };
+        for (const b of BATCHES) {
+            const bt = await Batch.findOneAndUpdate(
+                { class: cls._id, name: b.name },
+                {
+                    $setOnInsert: {
+                        class: cls._id,
+                        name: b.name,
+                        schedule: { days: b.days, startTime: b.startTime, endTime: b.endTime },
+                        room: b.room,
+                        isActive: true,
+                    },
+                },
+                { upsert: true, returnDocument: "after" },
+            ).lean();
+            ids[c.name].batches[b.name] = String(bt._id);
+        }
+    }
+    log("✓ Classes 8–10 with batches A, B, C");
+
+    // students
+    const created = [];
+    for (const [i, [name, cls, b]] of STUDENTS.entries()) {
+        const email = `${name.split(" ")[0].toLowerCase()}${DEMO_DOMAIN}`;
+        if (await User.exists({ email })) continue;
+        const s = await createStudent(
+            {
+                fullName: name,
+                email,
+                whatsapp: `8801711${String(100000 + i).slice(-6)}`,
+                fatherName: `${name.split(" ")[1]} Senior`,
+                fatherPhone: `8801811${String(100000 + i).slice(-6)}`,
+                motherName: "Mother of " + name.split(" ")[0],
+                motherPhone: `8801911${String(100000 + i).slice(-6)}`,
+                address: "Dhanmondi, Dhaka",
+                institutionType: i % 3 ? "school" : "private",
+                institutionName: i % 3 ? "Sunnydale" : undefined,
+                class: ids[cls].id,
+                batch: ids[cls].batches[b],
+                password: PASSWORD,
+            },
+            actor,
+        );
+        created.push({ ...s, email, name, cls, b });
+    }
+    await User.updateMany(
+        { email: trusted({ $regex: `${DEMO_DOMAIN.replace(".", "\\.")}$` }), role: "student" },
+        { $set: { mustChangePassword: false } },
+    );
+    const lamia = await Student.findOne({ email: `lamia${DEMO_DOMAIN}` }).lean();
+    if (lamia?.status === "active") await setStudentActive(String(lamia._id), false, actor);
+    log(
+        created.length
+            ? `✓ ${created.length} students (password ${PASSWORD}); Lamia is inactive`
+            : "• Students already seeded — skipped (use --reset to start over)",
+    );
+
+    // admissions
+    const APPS = [
+        ["Zayan Hossain", "Class 9", 82.5, "pending"],
+        ["Tasnim Akter", "Class 9", 91, "pending"],
+        ["Rizwan Ali", "Class 8", 74, "pending"],
+        ["Mehreen Faruque", "Class 10", 88, "pending"],
+        ["Omar Siddique", "Class 10", 79.5, "approved"],
+        ["Priya Das", "Class 8", 58, "rejected"],
+    ];
+    let apps = 0;
+    for (const [i, [name, cls, score, status]] of APPS.entries()) {
+        const email = `${name.split(" ")[0].toLowerCase()}.apply${DEMO_DOMAIN}`;
+        if (await Admission.exists({ email })) continue;
+        const { refNo } = await submitAdmission(
+            {
+                fullName: name,
+                class: ids[cls].id,
+                preferredBatch: ids[cls].batches[["A", "B", "C"][i % 3]],
+                institutionType: "school",
+                institutionName: ["Scholastica", "Sunnydale", "Mastermind"][i % 3],
+                whatsapp: `8801555${String(200000 + i).slice(-6)}`,
+                email,
+                address: "House 12, Road 5, Dhanmondi, Dhaka",
+                fatherName: `Mr ${name.split(" ")[1]}`,
+                fatherPhone: `8801666${String(200000 + i).slice(-6)}`,
+                motherName: `Mrs ${name.split(" ")[1]}`,
+                motherPhone: `8801777${String(200000 + i).slice(-6)}`,
+                score,
+            },
+            await avatar(name, 10 + i * 50),
+            { ipHash: "demo", userAgent: "seed-demo" },
+        );
+        if (status !== "pending") {
+            const a = await Admission.findOne({ refNo }).lean();
+            await reviewAdmission(
+                String(a._id),
+                {
+                    status,
+                    note:
+                        status === "approved"
+                            ? "Called parent — joining Batch B"
+                            : "Score below cut-off",
+                },
+                actor,
+            );
+        }
+        apps++;
+    }
+    log(
+        apps
+            ? `✓ ${apps} admission applications (4 pending, 1 approved, 1 rejected)`
+            : "• Admissions already seeded — skipped",
+    );
+
+    // notices
+    if (!(await Notice.exists({ createdBy: admin._id }))) {
+        const base = {
+            classes: [],
+            batches: [],
+            isPinned: false,
+            publishAt: undefined,
+            expiresAt: undefined,
+            emailAudience: false,
+            removeAttachment: false,
+        };
+        const day = 24 * 60 * 60 * 1000;
+        const N = [
+            {
+                ...base,
+                title: "Puja holiday — no classes this Friday",
+                audience: "public",
+                isPinned: true,
+                body: "<p>Classes resume on <strong>Saturday</strong>. Happy holidays!</p>",
+            },
+            {
+                ...base,
+                title: "Mock test schedule for October",
+                audience: "public",
+                body: "<h2>Paper 1</h2><p>Friday, 10 October — 9:00 AM</p><h2>Paper 2</h2><p>Saturday, 11 October — 9:00 AM</p>",
+            },
+            {
+                ...base,
+                title: "Bring your past papers folder",
+                audience: "all_students",
+                body: "<p>Please bring all marked past papers to the next class. We’ll go through common mistakes.</p>",
+            },
+            {
+                ...base,
+                title: "Class 9: directed writing workshop",
+                audience: "class",
+                classes: [ids["Class 9"].id],
+                body: "<p>Extra 30 minutes after class on Saturday. <em>Optional but recommended.</em></p>",
+            },
+            {
+                ...base,
+                title: "Batch 9A: homework for next week",
+                audience: "batches",
+                batches: [ids["Class 9"].batches.A],
+                body: "<ul><li>Summary writing — 2019 Paper 1</li><li>Vocabulary list 4</li></ul>",
+                attach: true,
+            },
+            {
+                ...base,
+                title: "Results day announcement",
+                audience: "all_students",
+                publishAt: new Date(Date.now() + 5 * day),
+                body: "<p>This notice is scheduled — students can’t see it yet.</p>",
+            },
+            {
+                ...base,
+                title: "Old: registration deadline",
+                audience: "all_students",
+                publishAt: new Date(Date.now() - 40 * day),
+                expiresAt: new Date(Date.now() - 10 * day),
+                body: "<p>This one has expired.</p>",
+            },
+        ];
+        for (const { attach, ...n } of N) {
+            const file = attach
+                ? await pdf(
+                      "Homework sheet — Batch 9A",
+                      [
+                          ["Task 1", ["Summarise the passage in 150 words."]],
+                          ["Task 2", ["Learn vocabulary list 4."]],
+                      ],
+                      1,
+                  )
+                : null;
+            await saveNotice(null, n, file, actor);
+        }
+        log(
+            `✓ ${N.length} notices (public, all students, class, batch + attachment, scheduled, expired)`,
+        );
+    } else log("• Notices already seeded — skipped");
+
+    // materials
+    if (!(await Material.exists({ createdBy: admin._id }))) {
+        const m = (o) => ({
+            description: undefined,
+            classes: [],
+            batches: [],
+            isPublished: true,
+            ...o,
+        });
+        const M = [
+            [
+                m({
+                    title: "Paper 1 — directed writing notes",
+                    type: "note",
+                    audience: "batches",
+                    batches: [ids["Class 9"].batches.A],
+                }),
+                await pdf(
+                    "Directed writing",
+                    [
+                        [
+                            "Purpose & audience",
+                            [
+                                "Identify who you are writing to and why.",
+                                "Match your tone to the reader.",
+                            ],
+                        ],
+                        ["Structure", ["Opening, 3 developed points, closing."]],
+                    ],
+                    3,
+                ),
+            ],
+            [
+                m({
+                    title: "Summary writing — step by step",
+                    type: "note",
+                    audience: "class",
+                    classes: [ids["Class 9"].id],
+                }),
+                await pdf(
+                    "Summary writing",
+                    [
+                        ["Step 1", ["Read the question twice. Underline the focus."]],
+                        ["Step 2", ["Pick 10-12 content points."]],
+                    ],
+                    2,
+                ),
+            ],
+            [
+                m({
+                    title: "Narrative writing checklist",
+                    type: "note",
+                    audience: "class",
+                    classes: [ids["Class 10"].id],
+                }),
+                await pdf(
+                    "Narrative checklist",
+                    [["Before you write", ["Plan a clear beginning, middle and end."]]],
+                    1,
+                ),
+            ],
+            [
+                m({
+                    title: "2024 Paper 1 (practice)",
+                    type: "question_paper",
+                    audience: "all_students",
+                }),
+                await pdf(
+                    "Practice Paper 1",
+                    [
+                        ["Section A", ["Read the passage and answer questions 1-5."]],
+                        ["Section B", ["Write a letter of 200-300 words."]],
+                    ],
+                    2,
+                ),
+            ],
+            [
+                m({
+                    title: "Class 8 weekly routine",
+                    type: "routine",
+                    audience: "class",
+                    classes: [ids["Class 8"].id],
+                }),
+                await routineImage("Class 8 - weekly plan"),
+            ],
+            [
+                m({
+                    title: "Draft: Paper 2 answers (hidden)",
+                    type: "question_paper",
+                    audience: "all_students",
+                    isPublished: false,
+                }),
+                await pdf("Paper 2 answers", [["Answers", ["Not yet released."]]], 1),
+            ],
+        ];
+        for (const [input, file] of M) await saveMaterial(null, input, file, actor);
+        log(`✓ ${M.length} materials (notes, question papers, routine image, one hidden draft)`);
+    } else log("• Materials already seeded — skipped");
+
+    // Seeding queued account/admission emails to fake addresses — drop them.
+    const dropped = await MailJob.deleteMany({
+        createdAt: trusted({ $gte: started }),
+        status: "queued",
+    });
+    if (dropped.deletedCount) log(`✓ Dropped ${dropped.deletedCount} queued demo emails`);
+
+    log(`
+Logins (password for all: ${PASSWORD})
+  Admin (not super):  ${ADMIN_EMAIL}
+  Student 9A:          sadia${DEMO_DOMAIN}   ← sees the batch-9A notice + notes
+  Student 9B:          maisha${DEMO_DOMAIN}  ← must NOT see 9A items
+  Student 10C:         adnan${DEMO_DOMAIN}
+  Inactive student:    lamia${DEMO_DOMAIN}   ← login is blocked
+`);
+}
+
+try {
+    await connectDB();
+    log(`\nDatabase: ${mongoose.connection.db.databaseName}`);
+    if (args.has("--reset")) await reset();
+    else await seed();
+} catch (err) {
+    console.error("\n✗", err?.message ?? err);
+    process.exitCode = 1;
+} finally {
+    await disconnectDB();
+}

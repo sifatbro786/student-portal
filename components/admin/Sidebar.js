@@ -2,13 +2,16 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
+    BookOpen,
+    ChevronsUpDown,
     Inbox,
     KeyRound,
     Layers,
     LayoutDashboard,
     LogOut,
+    Megaphone,
     Menu,
     ShieldCheck,
     Users,
@@ -18,7 +21,7 @@ import { Logo } from "@/components/ui/Logo.js";
 import { cx } from "@/components/ui/cx.js";
 import { ADMIN_NAV } from "./nav.js";
 
-const ICONS = { LayoutDashboard, Users, Layers, ShieldCheck, Inbox };
+const ICONS = { LayoutDashboard, Users, Layers, ShieldCheck, Inbox, Megaphone, BookOpen };
 
 /**
  * Desktop: fixed left sidebar. Mobile: top bar + slide-in drawer.
@@ -91,44 +94,13 @@ export function Sidebar({ user, roleLabel, logoutAction, logoutAllAction, badges
     );
 
     const account = (
-        <div className="border-t border-line p-3">
-            <div className="flex items-center gap-3 px-2 py-2">
-                <span
-                    aria-hidden="true"
-                    className="grid size-9 shrink-0 place-items-center rounded-full bg-burgundy font-serif text-sm text-paper"
-                >
-                    {initials(user.name)}
-                </span>
-                <span className="min-w-0 leading-tight">
-                    <span className="block truncate text-sm font-semibold">{user.name}</span>
-                    <span className="block text-xs text-muted">{roleLabel}</span>
-                </span>
-            </div>
-            <div className="mt-1 grid gap-0.5">
-                <Link
-                    href="/change-password"
-                    className="flex h-9 items-center gap-2.5 rounded-md px-3 text-sm text-ink/80 hover:bg-surface/70 hover:text-ink"
-                >
-                    <KeyRound aria-hidden="true" className="size-4" /> Change password
-                </Link>
-                <form action={logoutAllAction}>
-                    <button
-                        type="submit"
-                        className="flex h-9 w-full items-center gap-2.5 rounded-md px-3 text-left text-sm text-ink/80 hover:bg-surface/70 hover:text-ink"
-                    >
-                        <LogOut aria-hidden="true" className="size-4" /> Log out of all devices
-                    </button>
-                </form>
-                <form action={logoutAction}>
-                    <button
-                        type="submit"
-                        className="flex h-9 w-full items-center gap-2.5 rounded-md px-3 text-left text-sm font-semibold text-burgundy hover:bg-burgundy-tint"
-                    >
-                        <LogOut aria-hidden="true" className="size-4" /> Log out
-                    </button>
-                </form>
-            </div>
-        </div>
+        <AccountMenu
+            user={user}
+            roleLabel={roleLabel}
+            pathname={pathname}
+            logoutAction={logoutAction}
+            logoutAllAction={logoutAllAction}
+        />
     );
 
     return (
@@ -180,6 +152,85 @@ export function Sidebar({ user, roleLabel, logoutAction, logoutAllAction, badges
                 {account}
             </aside>
         </>
+    );
+}
+
+/**
+ * Compact account row at the bottom of the sidebar. Opens an upward menu
+ * (Change password / Log out of all devices / Log out) — one row instead of four.
+ */
+function AccountMenu({ user, roleLabel, pathname, logoutAction, logoutAllAction }) {
+    const [openOn, setOpenOn] = useState(null); // closes itself on navigation
+    const open = openOn === pathname;
+    const ref = useRef(null);
+
+    useEffect(() => {
+        if (!open) return;
+        const onDown = (e) => !ref.current?.contains(e.target) && setOpenOn(null);
+        const onKey = (e) => e.key === "Escape" && setOpenOn(null);
+        document.addEventListener("pointerdown", onDown);
+        document.addEventListener("keydown", onKey);
+        return () => {
+            document.removeEventListener("pointerdown", onDown);
+            document.removeEventListener("keydown", onKey);
+        };
+    }, [open]);
+
+    const item =
+        "flex h-9 w-full items-center gap-2.5 rounded-md px-3 text-left text-sm text-ink/80 hover:bg-paper-deep hover:text-ink";
+    return (
+        <div ref={ref} className="relative border-t border-line p-3">
+            {open && (
+                <div
+                    id="account-menu"
+                    role="menu"
+                    className="absolute inset-x-3 bottom-full mb-2 rounded-lg border border-line bg-surface p-1.5 shadow-[0_18px_40px_-20px_rgb(31_26_23/0.35)]"
+                >
+                    <Link href="/change-password" role="menuitem" className={item}>
+                        <KeyRound aria-hidden="true" className="size-4" /> Change password
+                    </Link>
+                    <form action={logoutAllAction}>
+                        <button type="submit" role="menuitem" className={item}>
+                            <LogOut aria-hidden="true" className="size-4" /> Log out of all devices
+                        </button>
+                    </form>
+                    <div className="my-1 border-t border-line" />
+                    <form action={logoutAction}>
+                        <button
+                            type="submit"
+                            role="menuitem"
+                            className={cx(
+                                item,
+                                "font-semibold text-burgundy hover:bg-burgundy-tint hover:text-burgundy",
+                            )}
+                        >
+                            <LogOut aria-hidden="true" className="size-4" /> Log out
+                        </button>
+                    </form>
+                </div>
+            )}
+            <button
+                type="button"
+                onClick={() => setOpenOn(open ? null : pathname)}
+                aria-haspopup="menu"
+                aria-expanded={open}
+                aria-controls="account-menu"
+                className="flex w-full items-center gap-3 rounded-md px-2 py-2 text-left hover:bg-surface/70"
+            >
+                <span
+                    aria-hidden="true"
+                    className="grid size-9 shrink-0 place-items-center rounded-full bg-burgundy font-serif text-sm text-paper"
+                >
+                    {initials(user.name)}
+                </span>
+                <span className="min-w-0 flex-1 leading-tight">
+                    <span className="block truncate text-sm font-semibold">{user.name}</span>
+                    <span className="block text-xs text-muted">{roleLabel}</span>
+                </span>
+                <ChevronsUpDown aria-hidden="true" className="size-4 shrink-0 text-muted" />
+                <span className="sr-only">Account menu</span>
+            </button>
+        </div>
     );
 }
 

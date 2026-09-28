@@ -6,6 +6,7 @@ import path from "node:path";
 import { Readable } from "node:stream";
 import sharp from "sharp";
 import { fileTypeFromBuffer } from "file-type";
+import { PDFDocument } from "pdf-lib";
 import { resolveKey } from "./paths.js";
 import { ServiceError } from "../errors.js";
 
@@ -113,6 +114,57 @@ export async function saveImage(file, { dirKey, maxBytes, square }) {
         size: out.length,
         sha256: sha256(out),
     };
+}
+
+/**
+ * PDF or image document (materials, notice attachments — FR-MAT-02).
+ * PDFs are stored as-is after checking they open (no encryption); images are
+ * re-encoded to WebP (EXIF stripped). docx/pptx are rejected on purpose.
+ * @param {File} file
+ * @param {{ dirKey: string, maxBytes: number, field?: string }} opts
+ */
+export async function saveDocument(file, { dirKey, maxBytes, field = "file" }) {
+    if (!file || typeof file === "string" || file.size === 0) {
+        throw new ServiceError("no_file", "Please choose a file.", field);
+    }
+    if (file.size > maxBytes) {
+        throw new ServiceError(
+            "too_large",
+            `File must be ${Math.round(maxBytes / 1048576)} MB or smaller.`,
+            field,
+        );
+    }
+    const input = Buffer.from(await file.arrayBuffer());
+    const type = await fileTypeFromBuffer(input);
+
+    if (type?.mime === "application/pdf") {
+        try {
+            const doc = await PDFDocument.load(input, { updateMetadata: false });
+            if (doc.getPageCount() < 1) throw new Error("empty");
+        } catch {
+            throw new ServiceError(
+                "bad_pdf",
+                "This PDF can’t be opened (damaged or password-protected).",
+                field,
+            );
+        }
+        const key = await writeUnder(dirKey, `${randomUUID()}.pdf`, input);
+        return {
+            key,
+            originalName: cleanName(file.name),
+            mime: "application/pdf",
+            size: input.length,
+            sha256: sha256(input),
+        };
+    }
+    if (type && IMAGE_MIMES.includes(type.mime)) {
+        const ref = await saveImage(file, { dirKey, maxBytes }).catch((err) => {
+            if (err instanceof ServiceError) err.field = field;
+            throw err;
+        });
+        return ref;
+    }
+    throw new ServiceError("bad_type", "Upload a PDF or an image (JPG, PNG, WebP).", field);
 }
 
 /** Copy a stored file into another folder (new random name). Returns a new FileRef. */

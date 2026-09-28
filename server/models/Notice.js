@@ -14,6 +14,7 @@ const NoticeSchema = new Schema(
         isPinned: { type: Boolean, default: false },
         publishAt: { type: Date, default: Date.now },
         expiresAt: Date,
+        emailedAt: Date, // last "email this notice" broadcast (FR-NOT-04)
         createdBy: { type: ObjectId, ref: "User" },
     },
     baseOptions,
@@ -21,5 +22,6 @@ const NoticeSchema = new Schema(
 NoticeSchema.index({ audience: 1, publishAt: -1 });
 NoticeSchema.index({ batches: 1, publishAt: -1 });
 NoticeSchema.index({ classes: 1, publishAt: -1 });
+NoticeSchema.index({ isPinned: -1, publishAt: -1 });
 
 export const Notice = model("Notice", NoticeSchema, "notices");

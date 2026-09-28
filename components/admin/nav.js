@@ -22,6 +22,13 @@ export const ADMIN_NAV = [
         items: [{ href: "/admin/classes", label: "Classes & batches", icon: "Layers" }],
     },
     {
+        label: "Content",
+        items: [
+            { href: "/admin/notices", label: "Notices", icon: "Megaphone" },
+            { href: "/admin/materials", label: "Materials", icon: "BookOpen" },
+        ],
+    },
+    {
         label: "Settings",
         superAdminOnly: true,
         items: [{ href: "/admin/admins", label: "Admins", icon: "ShieldCheck" }],

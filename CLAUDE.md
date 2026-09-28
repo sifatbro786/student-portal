@@ -2,6 +2,13 @@
 
 # Project conventions (Tauhid Mostafa portal)
 
+## Current status (read first in a new chat)
+
+- Phase status, decisions and the next phase: project docs **PHASES.md** ("START HERE") and **HANDOVER.md**.
+- Demo data: `npm run seed:demo` (password `Demo@1234`, all `@demo.test`), `npm run seed:demo -- --reset` removes it. Extend it when a phase adds a module.
+
+## Conventions
+
 - Spec: PRD.md (project doc). Build plan: PHASES.md.
 - JavaScript only (no TS), JSDoc for types. `app/` at repo root (no `src/`).
 - `package.json` has `"type": "module"`.
@@ -21,3 +28,8 @@
 - Emails are queued with `enqueueMail()` and sent by `npm run cron` (separate process). Templates live in `server/mail/templates.js` and must escape every value.
 - Public forms: honeypot + signed render token (`server/form-token.js`) + IP rate limits. No Turnstile.
 - Rate limits key on Nginx's `X-Real-IP`. Without it every visitor shares the key "unknown", so production MUST run behind Nginx (P9).
+- Content visibility for students goes through `audienceFilter()` / `inAudience()` in `server/services/audience.js` — the only place that rule lives.
+- Students get materials only as per-student watermarked copies (`server/storage/watermark.js`); admins get the original.
+- PDF viewer uses the pdf.js LEGACY build (`pdfjs-dist/legacy/...`) — the modern build needs JS APIs older Safari/Chrome lack.
+- Admin uploads > 4 MB go through Route Handlers wrapped by `adminUpload()` (`server/admin-route.js`), not Server Actions.
+

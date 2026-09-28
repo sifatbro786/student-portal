@@ -17,6 +17,7 @@ export function Logo({ tone = "burgundy", href = "/", className }) {
                 width={46}
                 height={32}
                 className="h-8 w-auto shrink-0"
+                style={{ width: "auto" }}
                 priority
             />
             <span className="leading-tight">
