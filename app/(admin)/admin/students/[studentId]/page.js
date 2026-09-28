@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireAuth } from "@/server/auth/guards.js";
 import { getStudentDetail } from "@/server/services/students.js";
@@ -13,6 +14,7 @@ import {
     ChangeBatchForm,
     PurgeStudentForm,
     ResetPasswordForm,
+    StudentPhotoForm,
 } from "@/components/admin/forms/StudentSideForms.js";
 import { formatDate, formatDateTime } from "@/lib/date.js";
 import { scheduleLabel, studentFormValues } from "@/lib/format.js";
@@ -22,6 +24,7 @@ import {
     resetStudentPasswordAction,
     setStudentActiveAction,
     updateStudentAction,
+    uploadStudentPhotoAction,
 } from "../actions.js";
 
 export const metadata = { title: "Student" };
@@ -76,6 +79,17 @@ export default async function StudentDetailPage({ params, searchParams }) {
                 </Panel>
 
                 <div className="space-y-6">
+                    <Panel title="Photo">
+                        <StudentPhotoForm
+                            action={uploadStudentPhotoAction.bind(null, sid)}
+                            photoUrl={
+                                s.photo?.key
+                                    ? `/api/files/student-photo/${sid}?v=${s.photo.sha256.slice(0, 8)}`
+                                    : null
+                            }
+                            name={s.fullName}
+                        />
+                    </Panel>
                     <Panel title="Account">
                         <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-sm">
                             <dt className="text-muted">Joined</dt>
@@ -84,6 +98,19 @@ export default async function StudentDetailPage({ params, searchParams }) {
                             <dd>
                                 {s.user?.lastLoginAt ? formatDateTime(s.user.lastLoginAt) : "Never"}
                             </dd>
+                            {s.admission && (
+                                <>
+                                    <dt className="text-muted">Application</dt>
+                                    <dd>
+                                        <Link
+                                            href={`/admin/admissions/${s.admission}`}
+                                            className="font-mono text-burgundy hover:underline"
+                                        >
+                                            View
+                                        </Link>
+                                    </dd>
+                                </>
+                            )}
                             <dt className="text-muted">Password</dt>
                             <dd>
                                 {s.user?.mustChangePassword

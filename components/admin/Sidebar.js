@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import {
+    Inbox,
     KeyRound,
     Layers,
     LayoutDashboard,
@@ -17,13 +18,13 @@ import { Logo } from "@/components/ui/Logo.js";
 import { cx } from "@/components/ui/cx.js";
 import { ADMIN_NAV } from "./nav.js";
 
-const ICONS = { LayoutDashboard, Users, Layers, ShieldCheck };
+const ICONS = { LayoutDashboard, Users, Layers, ShieldCheck, Inbox };
 
 /**
  * Desktop: fixed left sidebar. Mobile: top bar + slide-in drawer.
  * `logoutAction` / `logoutAllAction` are Server Actions passed from the layout.
  */
-export function Sidebar({ user, roleLabel, logoutAction, logoutAllAction }) {
+export function Sidebar({ user, roleLabel, logoutAction, logoutAllAction, badges = {} }) {
     const pathname = usePathname();
     // The drawer is "open for a path": navigating away closes it without an effect.
     const [openOn, setOpenOn] = useState(null);
@@ -63,16 +64,22 @@ export function Sidebar({ user, roleLabel, logoutAction, logoutAllAction }) {
                                         className={cx(
                                             "relative flex h-10 items-center gap-3 rounded-md px-3 text-[0.92rem] font-medium transition-colors duration-200",
                                             active
-                                                ? "bg-surface text-burgundy shadow-[0_1px_0_rgb(31_26_23/0.04)] before:absolute before:inset-y-2 before:left-0 before:w-[3px] before:rounded-full before:bg-burgundy"
+                                                ? "bg-surface text-burgundy shadow-[0_1px_0_rgb(31_26_23/0.04)] before:absolute before:inset-y-2 before:left-0 before:w-0.75 before:rounded-full before:bg-burgundy"
                                                 : "text-ink/80 hover:bg-surface/70 hover:text-ink",
                                         )}
                                     >
                                         <Icon
                                             aria-hidden="true"
-                                            className="size-[18px] shrink-0"
+                                            className="size-4.5 shrink-0"
                                             strokeWidth={1.8}
                                         />
                                         {item.label}
+                                        {item.badge && badges[item.badge] > 0 && (
+                                            <span className="ml-auto rounded-full bg-burgundy px-2 py-0.5 text-[0.7rem] font-bold text-paper tabular-nums">
+                                                {badges[item.badge]}
+                                                <span className="sr-only"> waiting</span>
+                                            </span>
+                                        )}
                                     </Link>
                                 </li>
                             );
@@ -154,11 +161,11 @@ export function Sidebar({ user, roleLabel, logoutAction, logoutAllAction }) {
             <aside
                 id="admin-sidebar"
                 className={cx(
-                    "grain fixed inset-y-0 left-0 z-50 flex w-[272px] flex-col border-r border-line bg-paper-deep transition-transform duration-300 ease-(--ease-editorial) lg:translate-x-0",
+                    "grain fixed inset-y-0 left-0 z-50 flex w-68 flex-col border-r border-line bg-paper-deep transition-transform duration-300 ease-editorial lg:translate-x-0",
                     open ? "translate-x-0" : "-translate-x-full",
                 )}
             >
-                <div className="flex h-[72px] items-center justify-between border-b border-line px-5">
+                <div className="flex h-18 items-center justify-between border-b border-line px-5">
                     <Logo href="/admin" />
                     <button
                         type="button"

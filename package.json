@@ -8,7 +8,8 @@
         "start": "next start",
         "lint": "eslint",
         "check:syntax": "node scripts/check-syntax.js",
-        "seed:admin": "node --conditions=react-server --env-file=.env scripts/seed-super-admin.js"
+        "seed:admin": "node --conditions=react-server --env-file=.env scripts/seed-super-admin.js",
+        "cron": "node --conditions=react-server --env-file=.env scripts/cron.js"
     },
     "dependencies": {
         "@date-fns/tz": "^1.5.0",
@@ -16,14 +17,18 @@
         "@fontsource-variable/manrope": "^5.3.0",
         "bcryptjs": "^3.0.3",
         "date-fns": "^4.4.0",
+        "file-type": "^22.1.1",
         "jose": "^6.2.12",
         "lru-cache": "^11.5.3",
         "lucide-react": "^1.48.0",
         "mongoose": "^9.10.2",
         "next": "16.3.6",
+        "node-cron": "^4.6.0",
+        "nodemailer": "^10.0.12",
         "react": "19.2.8",
         "react-dom": "19.2.8",
         "server-only": "^0.0.1",
+        "sharp": "^0.35.5",
         "zod": "^4.6.5"
     },
     "devDependencies": {

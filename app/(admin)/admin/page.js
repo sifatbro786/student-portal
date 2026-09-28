@@ -1,8 +1,9 @@
 import Link from "next/link";
-import { ArrowRight, Layers, UserPlus } from "lucide-react";
+import { ArrowRight, Inbox, Layers, UserPlus } from "lucide-react";
 import { requireAuth } from "@/server/auth/guards.js";
 import { countStudents, listStudents } from "@/server/services/students.js";
 import { listClassesWithStats } from "@/server/services/academics.js";
+import { countPendingAdmissions } from "@/server/services/admissions.js";
 import { Button } from "@/components/ui/Button.js";
 import { Panel } from "@/components/ui/Panel.js";
 import { formatDate, inDhaka } from "@/lib/date.js";
@@ -16,19 +17,16 @@ function greeting() {
 
 export default async function AdminHome() {
     const user = await requireAuth(["super_admin", "admin"]);
-    const [counts, classes, recent] = await Promise.all([
+    const [counts, classes, recent, pending] = await Promise.all([
         countStudents(),
         listClassesWithStats(),
         listStudents({ status: "all", page: 1, pageSize: 5 }),
+        countPendingAdmissions(),
     ]);
     const batchCount = classes.reduce((n, c) => n + c.batchCount, 0);
     const stats = [
         { label: "Active students", value: counts.active, href: "/admin/students" },
-        {
-            label: "Inactive students",
-            value: counts.inactive,
-            href: "/admin/students?status=inactive",
-        },
+        { label: "Pending admissions", value: pending, href: "/admin/admissions" },
         { label: "Classes", value: classes.length, href: "/admin/classes" },
         { label: "Batches", value: batchCount, href: "/admin/classes" },
     ];
@@ -104,6 +102,13 @@ export default async function AdminHome() {
                     <div className="grid gap-2">
                         <Button href="/admin/students/new" className="justify-start">
                             <UserPlus aria-hidden="true" className="size-4" /> Add a student
+                        </Button>
+                        <Button
+                            href="/admin/admissions"
+                            variant="secondary"
+                            className="justify-start"
+                        >
+                            <Inbox aria-hidden="true" className="size-4" /> Review admissions
                         </Button>
                         <Button href="/admin/classes" variant="secondary" className="justify-start">
                             <Layers aria-hidden="true" className="size-4" /> Manage classes &

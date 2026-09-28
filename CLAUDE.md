@@ -1,6 +1,7 @@
 @AGENTS.md
 
 # Project conventions (Tauhid Mostafa portal)
+
 - Spec: PRD.md (project doc). Build plan: PHASES.md.
 - JavaScript only (no TS), JSDoc for types. `app/` at repo root (no `src/`).
 - `package.json` has `"type": "module"`.
@@ -16,4 +17,7 @@
 - Forms: uncontrolled inputs (`defaultValue`/`defaultChecked`). React resets forms after each action, and controlled radios/selects lose their DOM value on that reset.
 - Admin sidebar items live in `components/admin/nav.js`. Only add links for modules that already exist.
 - Formatting: Prettier, printWidth 100, tabWidth 4.
-
+- Uploads: `saveImage()` in `server/storage/files.js` (magic bytes → sharp → WebP, EXIF stripped). Route Handlers read multipart with `readLimitedFormData()` (streaming byte cap). Private files are served only by `app/api/files/[kind]/[id]` (404 when out of scope).
+- Emails are queued with `enqueueMail()` and sent by `npm run cron` (separate process). Templates live in `server/mail/templates.js` and must escape every value.
+- Public forms: honeypot + signed render token (`server/form-token.js`) + IP rate limits. No Turnstile.
+- Rate limits key on Nginx's `X-Real-IP`. Without it every visitor shares the key "unknown", so production MUST run behind Nginx (P9).

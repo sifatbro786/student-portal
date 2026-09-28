@@ -13,7 +13,12 @@ export const optionalObjectId = z.preprocess(
 
 export const email = z.string().trim().toLowerCase().pipe(z.email("Enter a valid email.").max(254));
 
-export const personName = z.string().trim().min(2, "Enter a name.").max(120, "Name is too long.");
+export const personName = z
+    .string()
+    .trim()
+    .min(2, "Enter a name.")
+    .max(120, "Name is too long.")
+    .regex(/^[^\p{Cc}]+$/u, "Name contains invalid characters."); // no CR/LF etc.
 
 /** "" → undefined for optional text inputs. */
 export const optionalText = (max) =>

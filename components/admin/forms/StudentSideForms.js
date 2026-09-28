@@ -152,3 +152,59 @@ export function PurgeStudentForm({ action, studentId, honorCount }) {
         </form>
     );
 }
+
+/** Profile photo upload (JPG/PNG/WebP ≤ 3 MB → stored as WebP, EXIF stripped). */
+export function StudentPhotoForm({ action, photoUrl, name }) {
+    const [state, formAction] = useActionState(action, null);
+    const [preview, setPreview] = useState(null);
+    const [seen, setSeen] = useState(state);
+    if (state !== seen) {
+        setSeen(state);
+        if (state?.ok) setPreview(null); // saved → show the stored photo
+    }
+    const src = preview ?? photoUrl;
+    return (
+        <form action={formAction} className="space-y-4">
+            <FormAlert state={state} />
+            <div className="flex items-center gap-4">
+                <span className="relative grid size-20 shrink-0 place-items-center overflow-hidden rounded-full border-[3px] border-burgundy bg-paper-deep font-serif text-xl text-burgundy">
+                    {src ? (
+                        // eslint-disable-next-line @next/next/no-img-element -- private, auth-checked route / blob preview
+                        <img
+                            src={src}
+                            alt={`Photo of ${name}`}
+                            className="size-full object-cover"
+                        />
+                    ) : (
+                        name
+                            .split(/\s+/)
+                            .slice(0, 2)
+                            .map((p) => p[0])
+                            .join("")
+                    )}
+                </span>
+                <label className="text-sm">
+                    <span className="font-semibold">
+                        {photoUrl ? "Replace photo" : "Add a photo"}
+                    </span>
+                    <input
+                        type="file"
+                        name="photo"
+                        accept="image/jpeg,image/png,image/webp"
+                        required
+                        onChange={(e) => {
+                            const f = e.target.files?.[0];
+                            setPreview(f ? URL.createObjectURL(f) : null);
+                        }}
+                        className="mt-1.5 block w-full text-xs text-muted file:mr-3 file:rounded-md file:border file:border-line-strong file:bg-surface file:px-3 file:py-1.5 file:text-sm file:font-semibold file:text-ink hover:file:border-ink"
+                    />
+                </label>
+            </div>
+            {preview && (
+                <SubmitButton variant="secondary" size="sm" pendingLabel="Uploading…">
+                    Save photo
+                </SubmitButton>
+            )}
+        </form>
+    );
+}

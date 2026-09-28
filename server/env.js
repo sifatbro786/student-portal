@@ -18,6 +18,21 @@ const schema = z.object({
             const rel = path.relative(process.cwd(), path.resolve(p));
             return rel.startsWith("..") || path.isAbsolute(rel);
         }, "UPLOAD_ROOT must be outside the project directory"),
+    // Mail (PRD §9). Optional in development: without SMTP the worker logs mails instead.
+    SMTP_HOST: z.string().optional(),
+    SMTP_PORT: z.coerce.number().int().default(465),
+    SMTP_USER: z.string().optional(),
+    SMTP_PASS: z.string().optional(),
+    MAIL_FROM: z.string().optional(),
+    ADMIN_NOTIFY_EMAILS: z
+        .string()
+        .optional()
+        .transform((v) =>
+            (v ?? "")
+                .split(",")
+                .map((e) => e.trim().toLowerCase())
+                .filter(Boolean),
+        ),
 });
 
 let cached;

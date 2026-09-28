@@ -30,14 +30,16 @@ const PROFILE_KEYS = [
 
 const actorOf = (u) => ({ id: u.id, role: u.role });
 
-export async function createStudentAction(_prev, formData) {
+/** `admissionId` (bound) converts an approved application (FR-ADM-10); null = manual create. */
+export async function createStudentAction(admissionId, _prev, formData) {
     const user = await requireAuth(ADMINS);
+    const fromAdmission = admissionId ? objectId.parse(admissionId) : undefined;
     const raw = pickForm(formData, [...PROFILE_KEYS, "class", "batch", "password"]);
     const { data, state } = parseOrState(createStudentSchema, raw);
     if (state) return state;
     let created;
     try {
-        created = await svc.createStudent(data, actorOf(user));
+        created = await svc.createStudent(data, actorOf(user), { admissionId: fromAdmission });
     } catch (err) {
         return errorState(err, "student.create", raw);
     }
@@ -115,4 +117,15 @@ export async function purgeStudentAction(id, _prev, formData) {
         return errorState(err, "student.purge", raw);
     }
     redirect("/admin/students?purged=1");
+}
+
+export async function uploadStudentPhotoAction(id, _prev, formData) {
+    const user = await requireAuth(ADMINS);
+    try {
+        await svc.setStudentPhoto(objectId.parse(id), formData.get("photo"), actorOf(user));
+    } catch (err) {
+        return errorState(err, "student.photo");
+    }
+    refresh();
+    return { ok: true, message: "Photo updated." };
 }

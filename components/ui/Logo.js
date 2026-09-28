@@ -1,23 +1,24 @@
+import Image from "next/image";
 import Link from "next/link";
 import { cx } from "./cx.js";
 
 /**
- * Typographic "TM" monogram — placeholder until the client's SVG logo arrives.
+ * Client's TM quill monogram + wordmark. The mark PNGs in public/brand/ were cut from
+ * public/logo.jpeg with a transparent background (swap for an SVG when the client sends one).
  * @param {{ tone?: 'burgundy' | 'paper', href?: string | null, className?: string }} props
  */
 export function Logo({ tone = "burgundy", href = "/", className }) {
     const paper = tone === "paper";
     const mark = (
         <span className={cx("inline-flex items-center gap-3", className)}>
-            <span
-                aria-hidden="true"
-                className={cx(
-                    "grid size-11 place-items-center rounded-full border font-serif text-lg font-semibold italic tracking-tight",
-                    paper ? "border-gold-light/70 text-paper" : "border-burgundy/40 text-burgundy",
-                )}
-            >
-                TM
-            </span>
+            <Image
+                src={paper ? "/brand/tm-mark-light.png" : "/brand/tm-mark.png"}
+                alt=""
+                width={46}
+                height={32}
+                className="h-8 w-auto shrink-0"
+                priority
+            />
             <span className="leading-tight">
                 <span
                     className={cx(

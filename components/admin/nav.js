@@ -7,7 +7,15 @@ export const ADMIN_NAV = [
     },
     {
         label: "People",
-        items: [{ href: "/admin/students", label: "Students", icon: "Users" }],
+        items: [
+            {
+                href: "/admin/admissions",
+                label: "Admissions",
+                icon: "Inbox",
+                badge: "pendingAdmissions",
+            },
+            { href: "/admin/students", label: "Students", icon: "Users" },
+        ],
     },
     {
         label: "Academics",

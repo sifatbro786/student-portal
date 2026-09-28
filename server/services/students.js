@@ -1,6 +1,8 @@
 import "server-only";
+import mongoose from "mongoose";
 import { connectDB, trusted, withTransaction } from "../db.js";
 import { User } from "../models/User.js";
+import { ClassModel } from "../models/Class.js";
 import { Student } from "../models/Student.js";
 import { nextSeq } from "../models/Counter.js";
 import { BatchChangeLog } from "../models/BatchChangeLog.js";
@@ -14,6 +16,10 @@ import { assertActiveBatchOfClass } from "./academics.js";
 import { ServiceError } from "../errors.js";
 import { writeAudit } from "../audit.js";
 import { removeStoredPaths } from "../storage/delete.js";
+import { copyStored, saveImage } from "../storage/files.js";
+import { enqueueMail } from "../mail/queue.js";
+import { env } from "../env.js";
+import { log } from "../log.js";
 import { admissionFolderKey, studentFolderKey } from "../storage/paths.js";
 import { escapeRegex } from "../validators/common.js";
 import { dhakaYear } from "../../lib/date.js";
@@ -43,14 +49,32 @@ async function loadStudent(id, session) {
     return s;
 }
 
-// ------------------------------------------------------------------ create (FR-STU-01/02)
-/** @param {Actor} actor */
-export async function createStudent(input, actor) {
+// ------------------------------------------------------------------ create (FR-STU-01/02, FR-ADM-10)
+const alreadyConverted = () =>
+    new ServiceError("converted", "This application was already turned into a student account.");
+
+/**
+ * @param {Actor} actor
+ * @param {{ admissionId?: string }} [opts] convert an approved application (FR-ADM-10)
+ */
+export async function createStudent(input, actor, { admissionId } = {}) {
     const passwordHash = await hashPassword(input.password); // outside the txn — bcrypt is slow
     const year = dhakaYear();
+    const studentObjectId = new mongoose.Types.ObjectId(); // known up-front so the admission can be claimed first
     let created;
+    let admissionPhoto = null;
     try {
         created = await withTransaction(async (session) => {
+            if (admissionId) {
+                // Claim the application atomically: it can be converted exactly once.
+                const claim = await Admission.findOneAndUpdate(
+                    { _id: admissionId, status: "approved", student: trusted({ $exists: false }) },
+                    { $set: { student: studentObjectId } },
+                    { session, returnDocument: "after" },
+                ).lean();
+                if (!claim) throw alreadyConverted();
+                admissionPhoto = claim.photo ?? null;
+            }
             await assertActiveBatchOfClass(input.class, input.batch, { session });
             if (await User.exists({ email: input.email }).session(session ?? null))
                 throw emailTaken();
@@ -73,7 +97,9 @@ export async function createStudent(input, actor) {
                 [
                     {
                         ...profileDoc(input),
+                        _id: studentObjectId,
                         user: user._id,
+                        admission: admissionId,
                         studentId,
                         class: input.class,
                         batch: input.batch,
@@ -93,6 +119,31 @@ export async function createStudent(input, actor) {
         actorRole: actor.role,
         action: "student.create",
         target: { type: "student", id: created.studentId },
+    });
+    // After commit: copy the application photo into the student's own folder.
+    if (admissionPhoto?.key) {
+        try {
+            const photo = await copyStored(
+                admissionPhoto,
+                `${studentFolderKey(created.studentId)}/profile`,
+            );
+            await Student.updateOne({ _id: studentObjectId }, { $set: { photo } });
+        } catch (err) {
+            log.error("student.photo_copy_failed", { studentId: created.studentId, err });
+        }
+    }
+    // PRD §9 student.account.created — never includes the password.
+    const cls = await ClassModel.findById(input.class).select("name").lean();
+    await enqueueMail({
+        to: input.email,
+        template: "student.account.created",
+        data: {
+            firstName: input.fullName.split(" ")[0],
+            studentId: created.studentId,
+            className: cls?.name ?? "",
+            email: input.email,
+            loginUrl: `${env().APP_URL}/login`,
+        },
     });
     return created;
 }
@@ -345,4 +396,26 @@ export async function countStudents() {
         Student.countDocuments({ status: "inactive" }),
     ]);
     return { active, inactive };
+}
+
+// ------------------------------------------------------------------ profile photo (FR-STU-01)
+export const STUDENT_PHOTO_MAX = 3 * 1024 * 1024;
+
+/** @param {File} file @param {Actor} actor */
+export async function setStudentPhoto(id, file, actor) {
+    await connectDB();
+    const s = await Student.findById(id).select("studentId photo").lean();
+    if (!s) throw new ServiceError("not_found", "Student not found.");
+    const photo = await saveImage(file, {
+        dirKey: `${studentFolderKey(s.studentId)}/profile`,
+        maxBytes: STUDENT_PHOTO_MAX,
+    });
+    await Student.updateOne({ _id: s._id }, { $set: { photo } });
+    if (s.photo?.key) await removeStoredPaths([s.photo.key]); // old file, after the DB points to the new one
+    await writeAudit({
+        actor: actor.id,
+        actorRole: actor.role,
+        action: "student.photo",
+        target: { type: "student", id: s.studentId },
+    });
 }

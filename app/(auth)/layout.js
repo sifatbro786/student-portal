@@ -1,3 +1,4 @@
+import Image from "next/image";
 import { Logo } from "@/components/ui/Logo.js";
 
 export const metadata = {
@@ -20,12 +21,15 @@ export default function AuthLayout({ children }) {
                     aria-hidden="true"
                     className="grain pointer-events-none absolute inset-0 opacity-60 mix-blend-soft-light"
                 />
-                <span
+                {/* The client's quill monogram as a quiet watermark */}
+                <Image
+                    src="/brand/tm-mark-light.png"
+                    alt=""
                     aria-hidden="true"
-                    className="pointer-events-none absolute -right-6 -bottom-16 font-serif text-[18rem] leading-none font-semibold italic text-paper/4 select-none"
-                >
-                    TM
-                </span>
+                    width={744}
+                    height={524}
+                    className="pointer-events-none absolute -right-16 -bottom-10 w-136 max-w-none opacity-[0.06] select-none"
+                />
 
                 <Logo tone="paper" className="relative" />
 
