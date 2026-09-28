@@ -1,4 +1,5 @@
 import "server-only";
+import path from "node:path";
 import { z } from "zod";
 
 // Only the variables needed so far. Later phases extend this schema.
@@ -7,6 +8,16 @@ const schema = z.object({
     APP_URL: z.url(),
     MONGODB_URI: z.string().min(1),
     JWT_SECRET: z.string().min(32, "JWT_SECRET must be at least 32 characters"),
+    // PRD §8: absolute and OUTSIDE the project, so builds/deploys never touch uploads
+    // and nothing private is ever reachable through Next's public/ folder.
+    UPLOAD_ROOT: z
+        .string()
+        .min(1)
+        .refine((p) => path.isAbsolute(p), "UPLOAD_ROOT must be an absolute path")
+        .refine((p) => {
+            const rel = path.relative(process.cwd(), path.resolve(p));
+            return rel.startsWith("..") || path.isAbsolute(rel);
+        }, "UPLOAD_ROOT must be outside the project directory"),
 });
 
 let cached;

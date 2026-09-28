@@ -32,6 +32,14 @@ export function AccountBar({ user }) {
                     <p className="text-sm font-semibold">{user.name}</p>
                     <StatusChip className="mt-1.5">{ROLE_LABEL[user.role]}</StatusChip>
                 </div>
+                {user.role === "student" && (
+                    <Link
+                        href="/dashboard/profile"
+                        className="block rounded-md px-3 py-2 text-sm hover:bg-paper-deep"
+                    >
+                        My profile
+                    </Link>
+                )}
                 <Link
                     href="/change-password"
                     className="block rounded-md px-3 py-2 text-sm hover:bg-paper-deep"

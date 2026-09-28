@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { inputClass, FieldError } from "./Field.js";
 
 export function PasswordField({
@@ -9,19 +9,42 @@ export function PasswordField({
     hint,
     error,
     autoComplete = "current-password",
+    withGenerator = false,
     ...props
 }) {
     const [visible, setVisible] = useState(false);
+    const inputRef = useRef(null);
+
+    // Readable temporary password (no 0/O/1/l/I). Admin shares it in person.
+    function generate() {
+        const alphabet = "ABCDEFGHJKMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789";
+        const bytes = crypto.getRandomValues(new Uint32Array(10));
+        const raw = Array.from(bytes, (b) => alphabet[b % alphabet.length]).join("");
+        inputRef.current.value = `${raw.slice(0, 5)}-${raw.slice(5)}`;
+        setVisible(true);
+    }
     const id = `f-${name}`;
     const describedBy =
         [hint && `${id}-hint`, error && `${id}-error`].filter(Boolean).join(" ") || undefined;
     return (
         <div className="space-y-1.5">
-            <label htmlFor={id} className="block text-sm font-semibold text-ink">
-                {label}
-            </label>
+            <div className="flex items-baseline justify-between gap-3">
+                <label htmlFor={id} className="block text-sm font-semibold text-ink">
+                    {label}
+                </label>
+                {withGenerator && (
+                    <button
+                        type="button"
+                        onClick={generate}
+                        className="text-xs font-semibold text-burgundy hover:underline"
+                    >
+                        Generate
+                    </button>
+                )}
+            </div>
             <div className="relative">
                 <input
+                    ref={inputRef}
                     id={id}
                     name={name}
                     type={visible ? "text" : "password"}

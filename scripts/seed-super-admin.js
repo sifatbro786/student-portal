@@ -23,7 +23,7 @@ const schema = z.strictObject({
     email: z.string().trim().toLowerCase().pipe(z.email()),
     password: z
         .string()
-        .min(8, "Use at least 12 characters for a seeded account.")
+        .min(8, "Use at least 8 characters.")
         .refine((v) => Buffer.byteLength(v) <= 72, "Max 72 bytes."),
 });
 

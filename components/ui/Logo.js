@@ -29,7 +29,7 @@ export function Logo({ tone = "burgundy", href = "/", className }) {
                 </span>
                 <span
                     className={cx(
-                        "eyebrow block text-[0.6rem]",
+                        "eyebrow block text-[0.6rem] tracking-[0.14em] whitespace-nowrap",
                         paper ? "text-gold-light" : "text-gold-deep",
                     )}
                 >

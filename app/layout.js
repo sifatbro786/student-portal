@@ -43,7 +43,10 @@ export const viewport = {
 export default function RootLayout({ children }) {
     return (
         <html lang="en" className={`${fraunces.variable} ${manrope.variable} h-full antialiased`}>
-            <body className="flex min-h-full flex-col">{children}</body>
+            {/* Extensions (ColorZilla, Grammarly…) inject attributes into <body> before hydration. */}
+            <body className="flex min-h-full flex-col" suppressHydrationWarning>
+                {children}
+            </body>
         </html>
     );
 }

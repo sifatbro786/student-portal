@@ -6,6 +6,7 @@ const base =
 
 const variants = {
     primary: "bg-burgundy text-paper hover:bg-burgundy-deep",
+    danger: "bg-danger text-paper hover:bg-burgundy-deep",
     secondary: "border border-line-strong bg-surface text-ink hover:border-ink",
     ghost: "text-burgundy hover:bg-burgundy-tint",
     link: "text-burgundy underline decoration-gold decoration-1 underline-offset-4 hover:decoration-burgundy",

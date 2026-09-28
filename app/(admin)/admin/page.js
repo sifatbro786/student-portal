@@ -1,25 +1,117 @@
+import Link from "next/link";
+import { ArrowRight, Layers, UserPlus } from "lucide-react";
 import { requireAuth } from "@/server/auth/guards.js";
-import { formatDate } from "@/lib/date.js";
+import { countStudents, listStudents } from "@/server/services/students.js";
+import { listClassesWithStats } from "@/server/services/academics.js";
+import { Button } from "@/components/ui/Button.js";
+import { Panel } from "@/components/ui/Panel.js";
+import { formatDate, inDhaka } from "@/lib/date.js";
 
-export const metadata = { title: "Admin" };
+export const metadata = { title: "Dashboard" };
+
+function greeting() {
+    const h = inDhaka(new Date()).getHours();
+    return h < 12 ? "Good morning" : h < 17 ? "Good afternoon" : "Good evening";
+}
 
 export default async function AdminHome() {
-    // Re-checked here too: layouts are not re-run on every client navigation.
     const user = await requireAuth(["super_admin", "admin"]);
+    const [counts, classes, recent] = await Promise.all([
+        countStudents(),
+        listClassesWithStats(),
+        listStudents({ status: "all", page: 1, pageSize: 5 }),
+    ]);
+    const batchCount = classes.reduce((n, c) => n + c.batchCount, 0);
+    const stats = [
+        { label: "Active students", value: counts.active, href: "/admin/students" },
+        {
+            label: "Inactive students",
+            value: counts.inactive,
+            href: "/admin/students?status=inactive",
+        },
+        { label: "Classes", value: classes.length, href: "/admin/classes" },
+        { label: "Batches", value: batchCount, href: "/admin/classes" },
+    ];
+
     return (
-        <section>
-            <p className="eyebrow text-gold-deep">{formatDate(new Date())}</p>
-            <h1 className="mt-2 text-3xl font-medium tracking-tight sm:text-4xl">
-                Good to see you, {user.name.split(" ")[0]}.
-            </h1>
-            <span className="gold-rule mt-4" />
-            <div className="mt-10 rounded-lg border border-dashed border-line-strong bg-surface/60 p-8">
-                <h2 className="text-xl font-medium">Your dashboard is being set up</h2>
-                <p className="mt-2 max-w-prose text-sm leading-relaxed text-muted">
-                    Students, batches, admissions and the rest of the tools will appear here as each
-                    module goes live.
-                </p>
+        <>
+            <header className="mb-10">
+                <p className="eyebrow text-gold-deep">{formatDate(new Date())}</p>
+                <h1 className="mt-2 text-3xl font-medium tracking-tight sm:text-4xl">
+                    {greeting()}, <em className="text-burgundy">{user.name.split(" ")[0]}.</em>
+                </h1>
+                <span className="gold-rule mt-4" />
+            </header>
+
+            <dl className="grid grid-cols-2 border-y border-line lg:grid-cols-4">
+                {stats.map((s, i) => (
+                    <Link
+                        key={s.label}
+                        href={s.href}
+                        className={`group px-1 py-5 sm:px-5 ${i % 2 ? "border-l border-line" : ""} ${i === 2 ? "border-t border-line lg:border-t-0 lg:border-l" : ""} ${i === 3 ? "border-t lg:border-t-0" : ""}`}
+                    >
+                        <dt className="text-sm text-muted group-hover:text-burgundy">{s.label}</dt>
+                        <dd className="mt-1 font-serif text-4xl font-medium tabular-nums">
+                            {s.value}
+                        </dd>
+                    </Link>
+                ))}
+            </dl>
+
+            <div className="mt-10 grid items-start gap-8 lg:grid-cols-[minmax(0,1fr)_20rem]">
+                <Panel
+                    title="Recently added students"
+                    actions={
+                        <Link
+                            href="/admin/students"
+                            className="inline-flex items-center gap-1 text-sm font-semibold text-burgundy hover:underline"
+                        >
+                            All students <ArrowRight aria-hidden="true" className="size-4" />
+                        </Link>
+                    }
+                >
+                    {recent.rows.length === 0 ? (
+                        <p className="text-sm text-muted">No students yet.</p>
+                    ) : (
+                        <ul className="-my-2 divide-y divide-line">
+                            {recent.rows.map((s) => (
+                                <li
+                                    key={String(s._id)}
+                                    className="flex items-center justify-between gap-4 py-3"
+                                >
+                                    <span className="min-w-0">
+                                        <Link
+                                            href={`/admin/students/${s._id}`}
+                                            className="font-semibold hover:text-burgundy"
+                                        >
+                                            {s.fullName}
+                                        </Link>
+                                        <span className="block text-xs text-muted">
+                                            <span className="font-mono">{s.studentId}</span> ·{" "}
+                                            {s.class?.name} · Batch {s.batch?.name}
+                                        </span>
+                                    </span>
+                                    <span className="shrink-0 text-xs text-muted">
+                                        {formatDate(s.createdAt)}
+                                    </span>
+                                </li>
+                            ))}
+                        </ul>
+                    )}
+                </Panel>
+
+                <Panel title="Quick actions">
+                    <div className="grid gap-2">
+                        <Button href="/admin/students/new" className="justify-start">
+                            <UserPlus aria-hidden="true" className="size-4" /> Add a student
+                        </Button>
+                        <Button href="/admin/classes" variant="secondary" className="justify-start">
+                            <Layers aria-hidden="true" className="size-4" /> Manage classes &
+                            batches
+                        </Button>
+                    </div>
+                </Panel>
             </div>
-        </section>
+        </>
     );
 }
