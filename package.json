@@ -6,17 +6,34 @@
         "dev": "next dev",
         "build": "next build",
         "start": "next start",
-        "lint": "eslint"
+        "lint": "eslint",
+        "check:syntax": "node scripts/check-syntax.js",
+        "seed:admin": "node --conditions=react-server --env-file=.env scripts/seed-super-admin.js"
     },
     "dependencies": {
+        "@date-fns/tz": "^1.5.0",
+        "@fontsource-variable/fraunces": "^5.3.0",
+        "@fontsource-variable/manrope": "^5.3.0",
+        "bcryptjs": "^3.0.3",
+        "date-fns": "^4.4.0",
+        "jose": "^6.2.12",
+        "lru-cache": "^11.5.3",
+        "mongoose": "^9.10.2",
         "next": "16.3.6",
         "react": "19.2.8",
-        "react-dom": "19.2.8"
+        "react-dom": "19.2.8",
+        "server-only": "^0.0.1",
+        "zod": "^4.6.5"
     },
     "devDependencies": {
         "@tailwindcss/postcss": "^4",
+        "esbuild": "^0.28.2",
         "eslint": "^9",
         "eslint-config-next": "16.3.6",
         "tailwindcss": "^4"
+    },
+    "type": "module",
+    "engines": {
+        "node": ">=20.9"
     }
 }
