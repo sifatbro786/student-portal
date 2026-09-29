@@ -169,11 +169,6 @@ export default async function AssignmentReviewPage({ params, searchParams }) {
                                     </Td>
                                     <Td>
                                         <SubmissionState status={r.status} />
-                                        {s?.changedAfterReview && (
-                                            <span className="mt-1 block text-xs text-gold-deep">
-                                                Changed after review
-                                            </span>
-                                        )}
                                     </Td>
                                     <Td className="whitespace-nowrap text-muted">
                                         {s ? formatDateTime(s.submittedAt) : "—"}

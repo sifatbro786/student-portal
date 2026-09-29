@@ -2,17 +2,26 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BookOpen, CalendarDays, ClipboardList, FileQuestion, Home, Megaphone } from "lucide-react";
+import {
+    BookOpen,
+    CalendarDays,
+    ClipboardList,
+    FileQuestion,
+    Home,
+    Megaphone,
+    Trophy,
+} from "lucide-react";
 import { cx } from "@/components/ui/cx.js";
 
 // `short`: label in the phone tab bar. `bottom: false`: tabs row only — the phone
-// bar fits 5 items; Routine stays reachable from the home screen tiles.
+// bar fits 5 items; Papers and Routine stay reachable from the home screen tiles.
 const ITEMS = [
     { href: "/dashboard", label: "Home", icon: Home, exact: true },
     { href: "/dashboard/notices", label: "Notices", icon: Megaphone },
     { href: "/dashboard/assignments", label: "Assignments", short: "Tasks", icon: ClipboardList },
     { href: "/dashboard/materials", label: "Notes", icon: BookOpen },
-    { href: "/dashboard/question-papers", label: "Papers", icon: FileQuestion },
+    { href: "/dashboard/question-papers", label: "Papers", icon: FileQuestion, bottom: false },
+    { href: "/dashboard/results", label: "Results", icon: Trophy },
     { href: "/dashboard/routine", label: "Routine", icon: CalendarDays, bottom: false },
 ];
 
@@ -27,7 +36,7 @@ export function StudentNav({ variant }) {
     if (variant === "tabs")
         return (
             <nav aria-label="Student sections" className="hidden border-t border-line sm:block">
-                <ul className="mx-auto flex max-w-3xl gap-1 px-4">
+                <ul className="mx-auto flex max-w-3xl gap-1 overflow-x-auto px-4">
                     {ITEMS.map((i) => (
                         <li key={i.href}>
                             <Link

@@ -162,15 +162,21 @@ export default async function StudentAssignmentPage({ params }) {
                     )
                 )}
 
-                {win.open && (
-                    <SubmitWork
-                        assignmentId={aid}
-                        maxFiles={a.maxFiles}
-                        maxFileSizeMB={a.maxFileSizeMB}
-                        allowedTypes={[...a.allowedTypes]}
-                        hasSubmission={!!sub}
-                        late={win.isLate}
-                    />
+                {sub?.reviewedAt ? (
+                    <p className="text-sm text-muted">
+                        Your teacher has reviewed this, so it’s final and can’t be changed.
+                    </p>
+                ) : (
+                    win.open && (
+                        <SubmitWork
+                            assignmentId={aid}
+                            maxFiles={a.maxFiles}
+                            maxFileSizeMB={a.maxFileSizeMB}
+                            allowedTypes={[...a.allowedTypes]}
+                            hasSubmission={!!sub}
+                            late={win.isLate}
+                        />
+                    )
                 )}
             </section>
         </article>

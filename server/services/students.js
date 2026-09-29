@@ -359,10 +359,10 @@ export async function purgeStudent(id, { confirmStudentId, honorAction }, actor)
         }
         if (honorAction === "delete") {
             const entries = await HonorEntry.find({ student: s._id })
-                .select("photo")
+                .select("photo thumb")
                 .session(session ?? null)
                 .lean();
-            for (const e of entries) if (e.photo?.key) fileKeys.push(e.photo.key);
+            for (const e of entries) fileKeys.push(e.photo?.key, e.thumb?.key);
             await HonorEntry.deleteMany({ student: s._id }, opts);
         } else {
             // The entry keeps its own copy of name/photo (FR-HON-01) — just unlink.

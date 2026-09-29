@@ -90,7 +90,7 @@ export function SubmitWork({
                     status: "error",
                     error: res.error ?? "Upload failed. Please try again.",
                 });
-                if (res.code === "closed") router.refresh();
+                if (res.code === "closed" || res.code === "locked") router.refresh();
             }
         };
         xhr.onerror = () =>

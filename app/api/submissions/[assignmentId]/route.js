@@ -8,6 +8,7 @@ import { objectId } from "@/server/validators/common.js";
 import { receiveFiles } from "@/server/storage/submissions.js";
 import {
     getAssignmentForStudent,
+    isSubmissionLocked,
     submissionWindow,
     submitAssignment,
 } from "@/server/services/assignments.js";
@@ -21,7 +22,14 @@ const notFound = () => json({ error: "Not found." }, 404);
 const closed = () =>
     json({ error: "The deadline has passed — submissions are closed.", code: "closed" }, 403);
 
-const STATUS = { too_large: 413, too_many: 413, timeout: 408, not_found: 404, closed: 403 };
+const STATUS = {
+    too_large: 413,
+    too_many: 413,
+    timeout: 408,
+    not_found: 404,
+    closed: 403,
+    locked: 403,
+};
 
 /**
  * FR-ASG-03/04 — a student submits or re-submits files for one assignment.
@@ -46,6 +54,16 @@ export async function POST(request, { params }) {
         await drainBody(request, maxBody);
         return closed();
     }
+    if (await isSubmissionLocked(a._id, scope)) {
+        await drainBody(request, maxBody);
+        return json(
+            {
+                error: "Your teacher has already reviewed this submission, so it can’t be changed any more.",
+                code: "locked",
+            },
+            403,
+        );
+    }
     if (!hit(`upload:${scope.user.id}`, { limit: 30, windowMs: HOUR }).ok) {
         await drainBody(request, maxBody);
         return json({ error: "Upload limit reached (30 per hour). Please try again later." }, 429);
@@ -69,6 +87,7 @@ export async function POST(request, { params }) {
             return json(
                 {
                     error: err.message,
+                    code: err.code,
                     fieldErrors: err.field ? { [err.field]: err.message } : undefined,
                 },
                 STATUS[err.code] ?? 422,

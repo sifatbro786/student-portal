@@ -11,7 +11,8 @@
         "seed:admin": "node --conditions=react-server --env-file=.env scripts/seed-super-admin.js",
         "cron": "node --conditions=react-server --env-file=.env scripts/cron.js",
         "mail:test": "node --conditions=react-server --env-file=.env scripts/mail-test.js",
-        "seed:demo": "node --conditions=react-server --env-file=.env scripts/seed-demo.js"
+        "seed:demo": "node --conditions=react-server --env-file=.env scripts/seed-demo.js",
+        "seed:honor": "node --conditions=react-server --env-file=.env scripts/seed-honor.js"
     },
     "dependencies": {
         "@date-fns/tz": "^1.5.0",

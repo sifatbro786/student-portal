@@ -273,7 +273,6 @@ export async function getAssignmentReview(id) {
                           feedback: sub.feedback ?? "",
                           marks: sub.marks ?? null,
                           reviewedAt: sub.reviewedAt ?? null,
-                          changedAfterReview: !!sub.reviewedAt && sub.submittedAt > sub.reviewedAt,
                       }
                     : null,
             };
@@ -403,6 +402,19 @@ export async function getOwnSubmission(assignmentId, scope) {
         .lean();
 }
 
+const LOCKED_MESSAGE =
+    "Your teacher has already reviewed this submission, so it can’t be changed any more.";
+
+/** [DECIDED 2026-09-29] A reviewed submission is final — the student can't replace it. */
+export async function isSubmissionLocked(assignmentId, scope) {
+    await connectDB();
+    return !!(await Submission.exists({
+        assignment: oid(assignmentId),
+        student: scope.studentObjectId,
+        reviewedAt: trusted({ $exists: true }),
+    }));
+}
+
 /**
  * FR-ASG-03/04: validate staged files and (re)place the student's submission.
  * Order: new files saved → DB updated → old files deleted.
@@ -438,14 +450,25 @@ export async function submitAssignment(assignmentId, scope, staged, receivedAt =
         );
     }
 
+    if (await isSubmissionLocked(a._id, scope)) {
+        await discard();
+        throw new ServiceError("locked", LOCKED_MESSAGE);
+    }
+
     const files = await finalizeFiles(staged, {
         allowed: a.allowedTypes,
         dirKey: submissionFolderKey(scope.studentId, a._id),
     });
 
+    // `reviewedAt` must still be missing: a review locks the submission, atomically —
+    // a review saved while this upload was running wins (the upsert then hits E11000).
     const upsert = () =>
         Submission.findOneAndUpdate(
-            { assignment: a._id, student: scope.studentObjectId },
+            {
+                assignment: a._id,
+                student: scope.studentObjectId,
+                reviewedAt: trusted({ $exists: false }),
+            },
             { $set: { files, submittedAt: receivedAt, isLate: win.isLate } },
             { upsert: true, returnDocument: "before", runValidators: true },
         ).lean();
@@ -454,9 +477,15 @@ export async function submitAssignment(assignmentId, scope, staged, receivedAt =
         try {
             previous = await upsert();
         } catch (err) {
-            // Two first submissions racing on the unique (assignment, student) index.
+            // E11000 = two first submissions racing on the unique (assignment, student)
+            // index, or the existing submission was reviewed (locked). Retry once to tell.
             if (err?.code !== 11000) throw err;
-            previous = await upsert();
+            try {
+                previous = await upsert();
+            } catch (err2) {
+                if (err2?.code === 11000) throw new ServiceError("locked", LOCKED_MESSAGE);
+                throw err2;
+            }
         }
     } catch (err) {
         await removeStoredPaths(files.map((f) => f.key));

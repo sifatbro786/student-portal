@@ -17,6 +17,7 @@ import { Admission } from "../server/models/Admission.js";
 import { Notice } from "../server/models/Notice.js";
 import { Material } from "../server/models/Material.js";
 import { Assignment } from "../server/models/Assignment.js";
+import { Exam } from "../server/models/Exam.js";
 import { ClassModel } from "../server/models/Class.js";
 import { Batch } from "../server/models/Batch.js";
 import { MailJob } from "../server/models/Jobs.js";
@@ -36,6 +37,7 @@ import {
     reviewSubmission,
 } from "../server/services/assignments.js";
 import { stageFromBuffer } from "../server/storage/submissions.js";
+import { saveExam, saveResults, deleteExam } from "../server/services/results.js";
 import { SUBMISSION_FILE_TYPES } from "../lib/constants.js";
 
 const DEMO_DOMAIN = "@demo.test";
@@ -117,6 +119,8 @@ async function reset() {
     if (admin) {
         for (const a of await Assignment.find({ createdBy: admin._id }).select("_id").lean())
             await deleteAssignment(String(a._id), actor);
+        for (const e of await Exam.find({ createdBy: admin._id }).select("_id").lean())
+            await deleteExam(String(e._id), actor);
     }
     const students = await Student.find({
         email: trusted({ $regex: `${DEMO_DOMAIN.replace(".", "\\.")}$` }),
@@ -139,7 +143,7 @@ async function reset() {
         await User.deleteOne({ _id: admin._id });
     }
     log(
-        `✓ Removed ${students.length} students, ${adms.length} applications, demo notices/materials/assignments and the demo admin.`,
+        `✓ Removed ${students.length} students, ${adms.length} applications, demo notices/materials/assignments/exams and the demo admin.`,
     );
 }
 
@@ -630,6 +634,62 @@ async function seed() {
         );
     } else log("• Assignments already seeded — skipped");
 
+    // exams + results (P6)
+    if (!(await Exam.exists({ createdBy: admin._id }))) {
+        const sid = async (first) =>
+            String((await Student.findOne({ email: `${first}${DEMO_DOMAIN}` }).lean())._id);
+        const E = [
+            {
+                title: "Mock Test 1 — Paper 1",
+                class: ids["Class 9"].id,
+                batches: [ids["Class 9"].batches.A, ids["Class 9"].batches.B],
+                date: new Date("2026-09-11T18:00:00Z"), // 12 Sep, Dhaka
+                fullMarks: 50,
+                isPublished: true,
+                results: [
+                    ["sadia", 44, "A*", "Excellent summary — precise and concise."],
+                    ["arian", 38.5, "A", ""],
+                    ["maisha", 31, "B", "Work on paragraph structure."],
+                ],
+            },
+            {
+                title: "Mock Test 2 — Paper 2 (marking in progress)",
+                class: ids["Class 9"].id,
+                batches: [ids["Class 9"].batches.A, ids["Class 9"].batches.B],
+                date: new Date("2026-09-25T18:00:00Z"),
+                fullMarks: 50,
+                isPublished: false,
+                results: [["sadia", 40, "A", ""]],
+            },
+            {
+                title: "Class 10 Mock — Paper 1",
+                class: ids["Class 10"].id,
+                batches: Object.values(ids["Class 10"].batches),
+                date: new Date("2026-09-18T18:00:00Z"),
+                fullMarks: 80,
+                isPublished: true,
+                results: [
+                    ["adnan", 66, "A", "Strong narrative voice."],
+                    ["nusrat", 71.5, "A*", ""],
+                    ["farhan", 52, "B", ""],
+                ],
+            },
+        ];
+        for (const { results, ...input } of E) {
+            const { id } = await saveExam(null, input, actor);
+            const rows = [];
+            for (const [first, marks, grade, remark] of results)
+                rows.push({
+                    student: await sid(first),
+                    marks,
+                    grade,
+                    remark: remark || undefined,
+                });
+            await saveResults(id, rows, actor);
+        }
+        log("✓ 3 exams (2 published, 1 hidden) with results");
+    } else log("• Exams already seeded — skipped");
+
     // Seeding queued account/admission emails to fake addresses — drop them.
     const dropped = await MailJob.deleteMany({
         createdAt: trusted({ $gte: started }),
@@ -640,7 +700,7 @@ async function seed() {
     log(`
 Logins (password for all: ${PASSWORD})
   Admin (not super):  ${ADMIN_EMAIL}
-  Student 9A:          sadia${DEMO_DOMAIN}   ← sees the batch-9A notice + notes; 2 assignments handed in
+  Student 9A:          sadia${DEMO_DOMAIN}   ← sees the batch-9A notice + notes; 2 assignments handed in; results
   Student 9A:          arian${DEMO_DOMAIN}   ← open 9A homework not yet handed in
   Student 9B:          maisha${DEMO_DOMAIN}  ← must NOT see 9A items; one late submission
   Student 10C:         adnan${DEMO_DOMAIN}   ← homework due in ~26 h (countdown)

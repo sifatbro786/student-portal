@@ -36,4 +36,8 @@
 - A busboy file stream must be destroyed WITH an error (`stream.destroy(err)`); a plain `destroy()` never settles its pipeline and the request hangs.
 - Early answers to an upload (closed, rate-limited) call `drainBody()` first, otherwise the browser sees a connection reset instead of the JSON error.
 - Streamed ZIP downloads: `archiver` `ZipArchive({ store: true })` piped through a `PassThrough` → `Readable.toWeb()`; files are read one at a time.
-
+- Reviewed submissions are locked (`isSubmissionLocked()` + atomic upsert filter). Keep that filter if you touch `submitAssignment`.
+- `next/cache` does not resolve under plain Node: anything `scripts/*` imports must not import it. Cached readers live in separate files (e.g. `server/services/honor-public.js`).
+- Result grid / honor reorder submit via `startTransition(() => formAction(fd))`, not `<form action>`, so React doesn't reset the form when rows come back with errors.
+- Public honor photos: `UPLOAD_ROOT/public/honor/<year>/`, URL via `mediaUrl()`; Nginx serves `/media` (P9). Mutations on honor data must call `updateTag("honor")` (actions) or `revalidateTag("honor", { expire: 0 })` (route handlers).
+- Avoid `$avg`/`$max` in aggregations while testing on FerretDB; small per-exam stats are computed in JS.

@@ -5,7 +5,8 @@ const HonorEntrySchema = new Schema(
     {
         year: { type: Number, required: true, min: 2000, max: 2100 },
         name: { type: String, required: true, trim: true, maxlength: 120 },
-        photo: FileRefSchema, // own copy — independent of the student record (FR-HON-01)
+        photo: FileRefSchema, // own copy — independent of the student record (FR-HON-01), 600×600
+        thumb: FileRefSchema, // 200×200 (FR-HON-04)
         grade: { type: String, required: true, trim: true, maxlength: 4 },
         percentage: { type: Number, required: true, min: 0, max: 100 },
         student: { type: ObjectId, ref: "Student" },

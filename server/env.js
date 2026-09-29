@@ -18,6 +18,12 @@ const schema = z.object({
             const rel = path.relative(process.cwd(), path.resolve(p));
             return rel.startsWith("..") || path.isAbsolute(rel);
         }, "UPLOAD_ROOT must be outside the project directory"),
+    // Public files (honor photos) are served by Nginx at this path (PRD §8, §16).
+    PUBLIC_MEDIA_BASE: z
+        .string()
+        .regex(/^\/[a-z0-9/_-]*$/i)
+        .default("/media")
+        .transform((v) => v.replace(/\/+$/, "")),
     // Mail (PRD §9). Optional in development: without SMTP the worker logs mails instead.
     SMTP_HOST: z.string().optional(),
     SMTP_PORT: z.coerce.number().int().default(465),

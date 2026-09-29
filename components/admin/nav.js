@@ -19,7 +19,10 @@ export const ADMIN_NAV = [
     },
     {
         label: "Academics",
-        items: [{ href: "/admin/classes", label: "Classes & batches", icon: "Layers" }],
+        items: [
+            { href: "/admin/classes", label: "Classes & batches", icon: "Layers" },
+            { href: "/admin/exams", label: "Exams & results", icon: "ClipboardCheck" },
+        ],
     },
     {
         label: "Content",
@@ -28,6 +31,10 @@ export const ADMIN_NAV = [
             { href: "/admin/materials", label: "Materials", icon: "BookOpen" },
             { href: "/admin/assignments", label: "Assignments", icon: "ClipboardList" },
         ],
+    },
+    {
+        label: "Website",
+        items: [{ href: "/admin/honor-board", label: "Honor board", icon: "Award" }],
     },
     {
         label: "Settings",

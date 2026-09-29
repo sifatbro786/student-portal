@@ -5,6 +5,7 @@ import { cx } from "./cx.js";
 /**
  * Client's TM quill monogram + wordmark. The mark PNGs in public/brand/ were cut from
  * public/logo.jpeg with a transparent background (swap for an SVG when the client sends one).
+ * 45×32 matches the PNG's 372×262 ratio — otherwise next/image warns in dev.
  * @param {{ tone?: 'burgundy' | 'paper', href?: string | null, className?: string }} props
  */
 export function Logo({ tone = "burgundy", href = "/", className }) {
@@ -14,7 +15,7 @@ export function Logo({ tone = "burgundy", href = "/", className }) {
             <Image
                 src={paper ? "/brand/tm-mark-light.png" : "/brand/tm-mark.png"}
                 alt=""
-                width={46}
+                width={45}
                 height={32}
                 className="h-8 w-auto shrink-0"
                 style={{ width: "auto" }}

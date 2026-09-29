@@ -5,7 +5,7 @@
 > Brand: শুধু Tauhid Mostafa personal brand (MIE Academy নয়) — [DECIDED]।
 
 ## ▶ START HERE (new chat)
-- **Next phase: P6 — Results & Honor Board.** P1–P5 done and delivered to the repo.
+- **Next phase: P7 — Payments.** P1–P6 done and delivered to the repo.
 - Before coding, read **HANDOVER.md** (project doc): working method, environment, conventions, next-phase checklist.
 - Repo on the user's PC: `E:\Works\Tauhid Mostafa\tauhid-mostafa` (via the device bridge). Read the repo's `CLAUDE.md` first.
 
@@ -16,8 +16,10 @@
 - ✅ P4 Content — 2026-09-28 (notices + rich text + email broadcast, materials/question papers/routine, per-student PDF/image watermark, canvas-only viewer; 31 service + 22 e2e checks incl. Batch B → Batch A file 404)
 - ✅ Between phases — 2026-09-29: sidebar account block → compact dropdown (`AccountMenu` in `components/admin/Sidebar.js`); demo seed `npm run seed:demo` / `npm run seed:demo -- --reset`
 - ✅ P5 Assignments — 2026-09-29 (admin CRUD + review table + feedback/marks + streamed ZIP; student list/countdown/upload with progress; busboy streaming uploads; 33 service + 39 e2e checks incl. 9B → 9A 404, server-side deadline, resubmit deletes old files, 95 MB ZIP streamed with flat memory)
-- ⏭ **P6 Results & Honor Board — next, not started**
-- ⏳ P7 · P8 · P9
+- ✅ P5 follow-up — 2026-09-29: reviewed submission = locked (atomic); dev image warning fixed
+- ✅ P6 Results & Honor Board — 2026-09-29 (exams CRUD, result grid + bulk save, CSV import with row report, stats, student results + dashboard card; honor admin with photos 600/200, consent, reorder, year headings, add-from-student, cached public reader tag `honor` + admin preview; `/media` dev fallback; `npm run seed:honor`; 38 service + 31 e2e checks)
+- ⏭ **P7 Payments — next, not started**
+- ⏳ P8 · P9
 
 ## Decisions after the PRD
 - [DECIDED 2026-09-28] **No Cloudflare Turnstile.** FR-ADM-05 anti-spam = honeypot + signed min-fill-time token + 3/IP/hour rate limit + Nginx limit_req.
@@ -30,12 +32,16 @@
 - Public /notices pages are built in P8 (service `listPublicNotices()` is ready).
 - Admin UI = left sidebar (professional, student-friendly). Nav grows per phase in `components/admin/nav.js` (only link modules that exist). Account = one-row dropdown at the bottom (Change password / Log out of all devices / Log out).
 - [NOTED 2026-09-29 — scope in P8] Homepage **may** get **Testimonials** and **Gallery** sections. PRD additions (need CMS models + admin UI + image upload + consent for student photos). Confirm exact scope with the user at the start of P8. Testimonials must be real, with permission — never invented.
-- Demo data: `npm run seed:demo` (all `@demo.test`, password `Demo@1234`); `-- --reset` removes it. Refuses when NODE_ENV=production unless `--allow-production`. Extend the seed in each phase (P5 done: 5 assignments + 4 submissions; P6: exams + results).
+- Demo data: `npm run seed:demo` (all `@demo.test`, password `Demo@1234`); `-- --reset` removes it. Refuses when NODE_ENV=production unless `--allow-production`. Extend the seed in each phase (P5: 5 assignments + 4 submissions; P6: 3 exams with results; P7: fee records).
 - [DECIDED 2026-09-29 — P5] Submission files live at `private/students/<studentId>/submissions/<assignmentId>/` (PRD §8 layout; HANDOVER had a different path — PRD wins). Student purge already removes them with the student folder. Assignment attachments: `private/assignments/<id>/`.
 - [DECIDED — P5] Student uploads are streamed to disk with `busboy` (`server/storage/submissions.js`), never buffered in memory (5 × 20 MB per request). Staging folder `UPLOAD_ROOT/tmp/uploads` — P9 cleanup job should delete staged files older than 1 day (left only if the process crashes mid-upload).
 - [DECIDED — P5] Lateness uses the time the request ARRIVED (server clock); uploads are capped at 10 minutes. Re-submitting after the deadline (allowLate on) marks the submission late.
-- [NOTED — P5] Re-submitting after the teacher reviewed keeps the old feedback/marks; the admin table flags it "Changed after review". Confirm with the client if they'd rather lock submissions once reviewed.
-- [NOTED — P5] Phone bottom bar = Home · Notices · Tasks (Assignments) · Notes · Papers. Routine moved to the tab row (≥ sm) + home tiles, because the phone bar fits 5.
+- [DECIDED 2026-09-29 — Sifat] A reviewed submission is LOCKED: once an admin saves feedback/marks the student can't replace it (atomic filter `reviewedAt $exists:false` in the upsert). Each new assignment is submitted separately as usual.
+- [NOTED — P6] Phone bottom bar = Home · Notices · Tasks · Notes · Results. Papers + Routine live in the tab row (≥ sm) and the home tiles (the phone bar fits 5).
+- [DECIDED — P6] Results: blank marks = no result (entry removed). CSV import is all-or-nothing with a row report. Exam class can't change once results exist; changing full marks recomputes every %. Stats are computed in JS from one exam's entries (FerretDB lacks `$avg`; tiny data).
+- [DECIDED — P6] Honor photos: `UPLOAD_ROOT/public/honor/<year>/` (600×600 + 200×200 WebP), URL `${PUBLIC_MEDIA_BASE}/honor/...`. Nginx serves `/media` in prod; `app/media/[...path]` is only a local fallback (public/ only). Model got a `thumb` FileRef (PRD FR-HON-04 needs two sizes). Photos never reach the public reader without consent.
+- [DECIDED — P6] Public honor data = `getPublicHonorBoard()` in `server/services/honor-public.js` (`unstable_cache`, tag `honor`, 1 h safety net). Admin saves call `updateTag`/`revalidateTag("honor", { expire: 0 })`. P8 builds the public pages on it.
+- [NOTED — P6] 2026 honor list (20 names, no photos, published) is seeded by `npm run seed:honor` (idempotent, production-safe) — not part of the demo seed.
 
 ## Global rules (সব phase এ)
 - প্রতিটা sub-step: backend contract (model + zod `.strict()` + service + guard) → verify → তারপর UI।
@@ -83,14 +89,14 @@
 - **P5.4** Student UI — list with status + countdown, submit/resubmit, feedback view।
 - **Done when:** deadline server-side enforced; ZIP memory এ load না করে stream হয়।
 
-## P6 — Results & Honor Board ⏭ NEXT
+## P6 — Results & Honor Board ✅
 - **P6.1** Exams CRUD, result grid (bulk save, % auto), CSV import + row report, stats (avg/high/low/grade dist)।
 - **P6.2** Student results (published only, own only)।
 - **P6.3** Honor admin — entries, HonorYear settings, add-from-student, 600×600 + 200 thumb, consent tick, drag reorder, `revalidateTag('honor')`।
 - **P6.4** Seed 2026 board (CLIENT-INFO.md এর 20 জন — নাম/grade/%; photo শুধু consent পাওয়ার পর)।
 - **Done when:** unpublished exam student এর কাছে invisible; honor save এ public page revalidate।
 
-## P7 — Payments
+## P7 — Payments ⏭ NEXT
 - **P7.1** `generateFeeRecords(period)` idempotent upsert + snapshot; create/reactivate hook; cron 00:05 day-1।
 - **P7.2** Matrix view (single aggregation, sticky col/header, confirm popover toggle, totals)।
 - **P7.3** List view (filters, bulk mark paid, CSV export), audit on every change।

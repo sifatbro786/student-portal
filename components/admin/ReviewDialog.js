@@ -61,6 +61,10 @@ export function ReviewDialog({ action, studentName, feedback, marks, reviewed, f
                                 ))}
                             </ul>
                         )}
+                        <p className="text-xs leading-relaxed text-muted">
+                            Saving a review locks this submission — the student can’t replace the
+                            files afterwards.
+                        </p>
                         <FormAlert state={state?.ok ? null : state} />
                         <div className="space-y-1.5">
                             <label htmlFor={`${uid}-fb`} className="block text-sm font-semibold">

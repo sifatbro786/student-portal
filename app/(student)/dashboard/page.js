@@ -4,13 +4,14 @@ import {
     CalendarDays,
     ClipboardList,
     FileQuestion,
-    Megaphone,
+    Trophy,
     UserRound,
 } from "lucide-react";
 import { getStudentScope } from "@/server/auth/guards.js";
 import { studentHome } from "@/server/services/student-home.js";
 import { NoticeList } from "@/components/student/NoticeList.js";
 import { AssignmentList } from "@/components/student/AssignmentList.js";
+import { ResultList } from "@/components/student/ResultList.js";
 import { scheduleLabel } from "@/lib/format.js";
 import { inDhaka } from "@/lib/date.js";
 
@@ -20,14 +21,14 @@ const TILES = [
     { href: "/dashboard/materials", label: "Notes", icon: BookOpen },
     { href: "/dashboard/question-papers", label: "Question papers", icon: FileQuestion },
     { href: "/dashboard/routine", label: "Routine", icon: CalendarDays },
-    { href: "/dashboard/notices", label: "All notices", icon: Megaphone },
     { href: "/dashboard/assignments", label: "Assignments", icon: ClipboardList },
+    { href: "/dashboard/results", label: "Results", icon: Trophy },
     { href: "/dashboard/profile", label: "Profile", icon: UserRound },
 ];
 
 export default async function StudentHome() {
     const scope = await getStudentScope();
-    const { batch, notices, deadlines } = await studentHome(scope);
+    const { batch, notices, deadlines, latestResult } = await studentHome(scope);
     const h = inDhaka(new Date()).getHours();
     const hello = h < 12 ? "Good morning" : h < 17 ? "Good afternoon" : "Good evening";
 
@@ -90,6 +91,23 @@ export default async function StudentHome() {
                         </Link>
                     </div>
                     <AssignmentList rows={deadlines} serverNow={new Date().toISOString()} />
+                </section>
+            )}
+
+            {latestResult && (
+                <section aria-labelledby="result-h">
+                    <div className="mb-3 flex items-baseline justify-between">
+                        <h2 id="result-h" className="text-xl font-medium">
+                            Latest result
+                        </h2>
+                        <Link
+                            href="/dashboard/results"
+                            className="text-sm font-semibold text-burgundy hover:underline"
+                        >
+                            All results
+                        </Link>
+                    </div>
+                    <ResultList rows={[latestResult]} />
                 </section>
             )}
 
