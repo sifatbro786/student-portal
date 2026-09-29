@@ -26,6 +26,7 @@ export const ADMIN_NAV = [
         items: [
             { href: "/admin/notices", label: "Notices", icon: "Megaphone" },
             { href: "/admin/materials", label: "Materials", icon: "BookOpen" },
+            { href: "/admin/assignments", label: "Assignments", icon: "ClipboardList" },
         ],
     },
     {

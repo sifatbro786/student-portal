@@ -4,8 +4,38 @@
 > Repo: **Next.js 16.3.6, React 19.2.8, JavaScript only (no TS), Tailwind v4, `app/` root এ — [DECIDED] `src/` হবে না**; PRD §7.2 এর `src/server` → `server/`, `src/lib` → `lib/`। `"type": "module"`।
 > Brand: শুধু Tauhid Mostafa personal brand (MIE Academy নয়) — [DECIDED]।
 
+## ▶ START HERE (new chat)
+- **Next phase: P6 — Results & Honor Board.** P1–P5 done and delivered to the repo.
+- Before coding, read **HANDOVER.md** (project doc): working method, environment, conventions, next-phase checklist.
+- Repo on the user's PC: `E:\Works\Tauhid Mostafa\tauhid-mostafa` (via the device bridge). Read the repo's `CLAUDE.md` first.
+
 ## Status
-- ✅ P1 Foundation — 2026-09-28 (e2e tested on FerretDB stand-in; real MongoDB test pending on dev machine)
+- ✅ P1 Foundation — 2026-09-28
+- ✅ P2 People — 2026-09-28 (sidebar admin shell, classes/batches, students, admins; 32 e2e + 39 service checks)
+- ✅ P3 Admission — 2026-09-28 (public form, upload pipeline, mail queue + `npm run cron`, admin review, convert-to-student; 30 service + 23 e2e checks)
+- ✅ P4 Content — 2026-09-28 (notices + rich text + email broadcast, materials/question papers/routine, per-student PDF/image watermark, canvas-only viewer; 31 service + 22 e2e checks incl. Batch B → Batch A file 404)
+- ✅ Between phases — 2026-09-29: sidebar account block → compact dropdown (`AccountMenu` in `components/admin/Sidebar.js`); demo seed `npm run seed:demo` / `npm run seed:demo -- --reset`
+- ✅ P5 Assignments — 2026-09-29 (admin CRUD + review table + feedback/marks + streamed ZIP; student list/countdown/upload with progress; busboy streaming uploads; 33 service + 39 e2e checks incl. 9B → 9A 404, server-side deadline, resubmit deletes old files, 95 MB ZIP streamed with flat memory)
+- ⏭ **P6 Results & Honor Board — next, not started**
+- ⏳ P7 · P8 · P9
+
+## Decisions after the PRD
+- [DECIDED 2026-09-28] **No Cloudflare Turnstile.** FR-ADM-05 anti-spam = honeypot + signed min-fill-time token + 3/IP/hour rate limit + Nginx limit_req.
+- [DECIDED] Uploads stay in `UPLOAD_ROOT` outside the project (not `public/uploads`). `server/env.js` refuses a path inside the project.
+- [DECIDED] Password minimum length = 8 (user's choice).
+- [DECIDED 2026-09-29] **Vercel = temporary preview only.** Production = Hostinger VPS + real domain (P9). On Vercel uploads are not kept and `npm run cron` (mail queue) never runs → test mail/files locally or on the VPS.
+- Purge also deletes the linked Admission document (same PII). Flagged to owner.
+- Client info (contacts, bio, 2 campuses, 2026 honor board list) → project doc CLIENT-INFO.md; seed values in `lib/site-defaults.js` until the P8 CMS.
+- Logo: transparent PNGs cut from the client JPEG → `public/brand/`. Ask the client for an SVG.
+- Public /notices pages are built in P8 (service `listPublicNotices()` is ready).
+- Admin UI = left sidebar (professional, student-friendly). Nav grows per phase in `components/admin/nav.js` (only link modules that exist). Account = one-row dropdown at the bottom (Change password / Log out of all devices / Log out).
+- [NOTED 2026-09-29 — scope in P8] Homepage **may** get **Testimonials** and **Gallery** sections. PRD additions (need CMS models + admin UI + image upload + consent for student photos). Confirm exact scope with the user at the start of P8. Testimonials must be real, with permission — never invented.
+- Demo data: `npm run seed:demo` (all `@demo.test`, password `Demo@1234`); `-- --reset` removes it. Refuses when NODE_ENV=production unless `--allow-production`. Extend the seed in each phase (P5 done: 5 assignments + 4 submissions; P6: exams + results).
+- [DECIDED 2026-09-29 — P5] Submission files live at `private/students/<studentId>/submissions/<assignmentId>/` (PRD §8 layout; HANDOVER had a different path — PRD wins). Student purge already removes them with the student folder. Assignment attachments: `private/assignments/<id>/`.
+- [DECIDED — P5] Student uploads are streamed to disk with `busboy` (`server/storage/submissions.js`), never buffered in memory (5 × 20 MB per request). Staging folder `UPLOAD_ROOT/tmp/uploads` — P9 cleanup job should delete staged files older than 1 day (left only if the process crashes mid-upload).
+- [DECIDED — P5] Lateness uses the time the request ARRIVED (server clock); uploads are capped at 10 minutes. Re-submitting after the deadline (allowLate on) marks the submission late.
+- [NOTED — P5] Re-submitting after the teacher reviewed keeps the old feedback/marks; the admin table flags it "Changed after review". Confirm with the client if they'd rather lock submissions once reviewed.
+- [NOTED — P5] Phone bottom bar = Home · Notices · Tasks (Assignments) · Notes · Papers. Routine moved to the tab row (≥ sm) + home tiles, because the phone bar fits 5.
 
 ## Global rules (সব phase এ)
 - প্রতিটা sub-step: backend contract (model + zod `.strict()` + service + guard) → verify → তারপর UI।
@@ -20,59 +50,44 @@
 | বিষয় | সিদ্ধান্ত |
 |---|---|
 | Glass nav / glass cards | ❌ PRD §13 নিষেধ করে। Nav = solid paper background + thin gold hairline, scroll এ subtle shadow। |
-| Heading font | PRD: serif display (Fraunces) headings; sans (Manrope/Inter) UI। Skill এর "one italic serif accent" → hero তে একটা italic phrase। |
-| Hero | Teacher এর real photo, lower-left headline + CTA, paper texture। Blob/gradient hero ❌। Video না থাকলে দরকার নেই। |
+| Heading font | PRD: serif display (Fraunces) headings; sans (Manrope) UI। Skill এর "one italic serif accent" → hero তে একটা italic phrase। |
+| Hero | Teacher এর real photo, lower-left headline + CTA, paper texture। Blob/gradient hero ❌। |
 | Logo rail | "Ex-faculty: Scholastica · Mastermind · Hurdco · Sunnydale" + Cambridge/Edexcel — typographic marquee, 30s linear, gradient mask, reduced-motion এ static। |
-| Testimonials | PRD তে নেই → build করব না (out of spec) যতক্ষণ না তুমি বলো। |
+| Testimonials / Gallery | User চেয়েছেন (2026-09-29) → P8 এ scope confirm করে build। শুধু real testimonial; editorial quote layout (auto-carousel না)। Gallery = real class photos, lazy, consent সহ। |
 | Count-up numbers / gradient text | ❌ (PRD)। |
 | Motion | Skill: reveal 700–900ms `cubic-bezier(.22,1,.36,1)`, hover lift ≤ 4px, `prefers-reduced-motion` respect। ✅ |
 | Verification | Skill checklist (390/768/1440, no overflow, no console error, build pass) প্রতিটা UI phase এ। ✅ |
 
 ---
 
-## P1 — Foundation
-**লক্ষ্য:** প্রজেক্টের কঙ্কাল + auth।
-- **P1.1 Setup & design foundation** — deps install, `.env.example`, `lib/env.js` (zod-validated env), `next.config.mjs` (`output: 'standalone'`, `serverExternalPackages`), Tailwind v4 `@theme` tokens (ink/paper/burgundy/gold/badge/muted), `next/font` (Fraunces + Manrope), paper texture, base UI primitives: Button, Input, Label, FieldError (`aria-live`), StatusChip, Card, SectionTitle (gold rule)। `lib/date.js` (Asia/Dhaka helpers, `28 Sep 2026, 6:00 PM` format)।
-- **P1.2 Data layer** — `server/db.js` (cached connection, `sanitizeFilter`, `strictQuery`), সব models (§6) schema + indexes, `Counter` atomic `nextSeq()`।
-- **P1.3 Auth core** — `password.js` (bcryptjs 12), `session.js` (jose HS256, 7d, sliding refresh), `guards.js` (`getCurrentUser` React.cache, `requireAuth`, `getStudentScope`), `rate-limit.js` (lru-cache, `X-Real-IP`), `audit.js`।
-- **P1.4 Auth UI + routing** — `/login` (brand designed), logout, `/change-password` + `mustChangePassword` gate, "log out all devices", `proxy.js` (redirect only), `/admin` + `/dashboard` empty shells, `/api/health`, `scripts/seed-super-admin.js` (prompt-based)।
+## P1 — Foundation ✅
+- P1.1 Setup & design foundation · P1.2 Data layer (all models) · P1.3 Auth core · P1.4 Auth UI + routing + seed super admin.
 - **Done when:** role redirect ঠিক; student `/admin` → 404; tokenVersion bump এ instant logout; lint + esbuild pass।
 
-## P2 — People
-- **P2.1 Storage core** (purge এর জন্য আগেই লাগবে) — `storage/paths.js` (UPLOAD_ROOT assert), `delete.js` + `PendingFileDeletion`।
-- **P2.2 Classes & Batches** — CRUD, unique (class,name), schedule validator, has-students হলে hard delete block।
-- **P2.3 Students** — create (`TM-YYYY-NNNN` counter), list (filter/search/paginate, regex escape), edit, batch change + `BatchChangeLog`, deactivate/reactivate (`tokenVersion++`), purge (transaction → commit → folder rm, type-ID confirm, honor entry keep/delete prompt), password reset।
-- **P2.4 Admin management** (super_admin) — CRUD admins, role set, reset password; সব invariant service layer এ।
-- **P2.5 Admin shell UI** — sidebar layout, dense tables, sticky header, empty states, skeletons।
+## P2 — People ✅
+- P2.1 Storage core · P2.2 Classes & Batches · P2.3 Students (create/list/edit/batch change/deactivate/purge/reset) · P2.4 Admin management · P2.5 Admin shell UI.
 - **Done when:** §2.1 সব invariant service-level এ enforced; purge DB rows + folder মুছে।
 
-## P3 — Admission
-- **P3.1 Upload pipeline** — stream + byte counter, `file-type` magic bytes allowlist, `sharp` (rotate, EXIF strip, webp), random UUID names, `/api/uploads` (admin), origin check।
-- **P3.2 Mail** — `transport.js` (Gmail SMTP env), `MailJob` queue, templates (4টা), `scripts/cron.js` এ mail worker (1 min, backoff, max 5)।
-- **P3.3 Public form** — `/admission` page (editorial design, mobile-first), Turnstile + honeypot + 3/IP/hr, BD phone normalise, duplicate guard, `ADM-YYYY-NNNN`, confirmation screen।
-- **P3.4 Admin review** — list/filter/search, detail with photo (private stream), approve/reject + note, `scoreVerified`, convert-to-student (pre-filled, once only, transaction), delete।
+## P3 — Admission ✅
+- P3.1 Upload pipeline · P3.2 Mail queue + cron worker · P3.3 Public form (honeypot + form token + IP limit) · P3.4 Admin review + convert-to-student.
 - **Done when:** duplicate + spam guard কাজ করে; দুটো email যায়; conversion pre-fill + link।
 
-## P4 — Content
-- **P4.1 Audience helper** — একটা `buildScopeFilter(scope)` যেটা notice/material/assignment সবাই use করবে।
-- **P4.2 Notices** — Tiptap editor, `sanitize-html`, slug, pin/publishAt/expiresAt, attachment, optional email broadcast (BCC 50, throttle)।
-- **P4.3 Materials / question papers / routine** — PDF/image only ≤ 25MB, publish flag, admin original download।
-- **P4.4 Scoped streaming + watermark** — `/api/files/[kind]/[id]`, 404 on no access, `pdf-lib`/`sharp` stamp, disk cache `(materialId, studentId, fileHash)`, purge on replace।
-- **P4.5 Student portal UI** — mobile-first `/dashboard` layout, notices, materials viewer (`react-pdf`, no download/print, select off), question papers, routine header (batch schedule)।
+## P4 — Content ✅
+- P4.1 Audience helper (`server/services/audience.js`) · P4.2 Notices · P4.3 Materials · P4.4 Scoped streaming + watermark · P4.5 Student portal UI (pdf.js legacy canvas viewer; react-pdf removed).
 - **Done when:** Batch A student direct URL এ Batch C material → 404; watermark এ name/ID দেখা যায়।
 
-## P5 — Assignments
-- **P5.1** Assignment CRUD (deadline Asia/Dhaka, allowLate, maxFiles, types, size)।
-- **P5.2** Submission route — multipart stream, per-file validation, resubmit replace (new save → DB → old delete), late rule server time, unique (assignment, student), 30 uploads/hr।
+## P5 — Assignments ✅
+- **P5.1** Assignment CRUD (deadline Asia/Dhaka, allowLate default false, maxFiles default 5, types, size default 20MB, published flag, optional attachment)। Model আগে থেকেই আছে: `server/models/Assignment.js`, `Submission.js` — PRD FR-ASG এর সাথে মিলিয়ে দেখো।
+- **P5.2** Submission route — multipart stream, per-file validation (magic bytes; docx/pptx = zip container check), resubmit replace (new save → DB → old delete), late rule server time, unique (assignment, student), 30 uploads/hr।
 - **P5.3** Admin review — scope এর সব student (submitted/late/missing) aggregation, feedback + marks, single download, ZIP (`archiver` streamed)।
 - **P5.4** Student UI — list with status + countdown, submit/resubmit, feedback view।
 - **Done when:** deadline server-side enforced; ZIP memory এ load না করে stream হয়।
 
-## P6 — Results & Honor Board
+## P6 — Results & Honor Board ⏭ NEXT
 - **P6.1** Exams CRUD, result grid (bulk save, % auto), CSV import + row report, stats (avg/high/low/grade dist)।
 - **P6.2** Student results (published only, own only)।
 - **P6.3** Honor admin — entries, HonorYear settings, add-from-student, 600×600 + 200 thumb, consent tick, drag reorder, `revalidateTag('honor')`।
-- **P6.4** Seed 2026 board (poster থেকে 20 জন — নাম/grade/%; photo শুধু consent পাওয়ার পর)।
+- **P6.4** Seed 2026 board (CLIENT-INFO.md এর 20 জন — নাম/grade/%; photo শুধু consent পাওয়ার পর)।
 - **Done when:** unpublished exam student এর কাছে invisible; honor save এ public page revalidate।
 
 ## P7 — Payments
@@ -83,15 +98,15 @@
 - **Done when:** cron দুবার চালালেও duplicate নেই; batch change এর পর পুরনো মাস ঠিক থাকে।
 
 ## P8 — Public site & SEO
-- **P8.1** SiteContent CMS (singleton, seed from poster: bio, ex-faculty, 17+ yrs, venue, phone, email)।
-- **P8.2** Homepage: Hero → Honor Board → About → Education → Experience timeline → Notice Board → Class info/venue/map → Contact/WhatsApp। Faculty marquee, numbered highlights (01–04)।
+- **P8.1** SiteContent CMS (singleton, seed from CLIENT-INFO: bio, ex-faculty, 17+ yrs, 2 campuses, phone, email)।
+- **P8.2** Homepage: Hero → Honor Board → About → Education → Experience timeline → Notice Board → Class info/venues/map → Contact/WhatsApp। Faculty marquee, numbered highlights (01–04)। **+ Testimonials / Gallery if confirmed.**
 - **P8.3** `/honor-board` (year index-tabs), `/notices`, `/notices/[slug]`।
 - **P8.4** Metadata, sitemap, robots, JSON-LD (Person, LocalBusiness, ItemList), OG image।
 - **Done when:** Lighthouse mobile ≥ 90 perf / 100 SEO / ≥ 95 a11y on `/`।
 
 ## P9 — Hardening & deploy
 - CSP + security headers, `error.js`/`not-found.js`, structured logs, audit log UI (super_admin), file cleanup job, `npm audit`।
-- VPS: Mongo replica set, Nginx (`/media`, limit_req, body size), PM2 (`web` + `cron`), certbot, UFW/fail2ban, `backup.sh` + **restore test**, handover doc।
+- VPS: Mongo replica set, Nginx (`/media`, limit_req, body size, **`X-Real-IP` header — rate limits depend on it**), PM2 (`web` + `cron`), certbot, UFW/fail2ban, `backup.sh` + **restore test**, handover doc। Vercel preview বন্ধ করা।
 - **Done when:** §11 checklist ticked; restore verified।
 
 ---
@@ -99,8 +114,8 @@
 ## Client থেকে যা লাগবে (কোন phase এর আগে)
 | কী | কখন লাগবে |
 |---|---|
-| Class names (Class 8/9/10 ) | P2 |
-| Logo (SVG), teacher professional photos | P1.4 (login) / P8 |
 | Honor board student photos + guardian consent | P6 |
+| Logo (SVG), teacher professional photos | P8 |
 | Bio, education details (degree/institution/year) | P8 |
+| Real testimonials (with permission) + gallery photos | P8 (if confirmed) |
 | Domain + Hostinger VPS access | P9 |

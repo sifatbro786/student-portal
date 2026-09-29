@@ -48,7 +48,7 @@ export async function readLimitedFormData(request, maxBytes) {
 }
 
 /** Keep a readable, harmless original name for display only. */
-function cleanName(name) {
+export function cleanName(name) {
     return (
         String(name ?? "file")
             .normalize("NFKC")

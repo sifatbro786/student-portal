@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from "react";
 import {
     BookOpen,
     ChevronsUpDown,
+    ClipboardList,
     Inbox,
     KeyRound,
     Layers,
@@ -21,7 +22,16 @@ import { Logo } from "@/components/ui/Logo.js";
 import { cx } from "@/components/ui/cx.js";
 import { ADMIN_NAV } from "./nav.js";
 
-const ICONS = { LayoutDashboard, Users, Layers, ShieldCheck, Inbox, Megaphone, BookOpen };
+const ICONS = {
+    LayoutDashboard,
+    Users,
+    Layers,
+    ShieldCheck,
+    Inbox,
+    Megaphone,
+    BookOpen,
+    ClipboardList,
+};
 
 /**
  * Desktop: fixed left sidebar. Mobile: top bar + slide-in drawer.

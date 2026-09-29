@@ -9,6 +9,9 @@ import { watermarkedCopy } from "@/server/storage/watermark.js";
 import { getMaterialForStudent } from "@/server/services/materials.js";
 import { getNoticeForStudent } from "@/server/services/notices.js";
 import { Notice } from "@/server/models/Notice.js";
+import { Assignment } from "@/server/models/Assignment.js";
+import { Submission } from "@/server/models/Submission.js";
+import { getAssignmentForStudent } from "@/server/services/assignments.js";
 import { log } from "@/server/log.js";
 
 export const runtime = "nodejs";
@@ -58,6 +61,41 @@ export async function GET(request, { params }) {
             const scope = await findStudentScope();
             if (!scope || !(await getNoticeForStudent(id, scope))) return notFound();
             return streamStored(n.attachment, { download });
+        }
+
+        // ---------------------------------------------------------- assignment attachments
+        if (kind === "assignment-attachment") {
+            const user = await getCurrentUser();
+            if (isAdmin(user)) {
+                const a = await Assignment.findById(id).select("attachment").lean();
+                return a?.attachment?.key ? streamStored(a.attachment, { download }) : notFound();
+            }
+            const scope = await findStudentScope();
+            if (!scope) return notFound();
+            const a = await getAssignmentForStudent(id, scope); // published + in scope
+            return a?.attachment?.key ? streamStored(a.attachment, { download }) : notFound();
+        }
+
+        // ---------------------------------------------------------- submitted files (FR-ASG-05/07)
+        // `id` = submission id, `?i=` = file index. Students only ever reach their own.
+        if (kind === "submission-file") {
+            const i = Number(new URL(request.url).searchParams.get("i") ?? "0");
+            if (!Number.isInteger(i) || i < 0 || i > 9) return notFound();
+            const user = await getCurrentUser();
+            let filter = null;
+            if (isAdmin(user)) filter = { _id: id };
+            else {
+                const scope = await findStudentScope();
+                if (scope) filter = { _id: id, student: scope.studentObjectId };
+            }
+            if (!filter) return notFound();
+            const sub = await Submission.findOne(filter).select("files").lean();
+            const ref = sub?.files?.[i];
+            if (!ref?.key) return notFound();
+            // Uploaded by students → never rendered inline except PDFs/images the admin opens.
+            const inline =
+                !download && /^(application\/pdf|image\/(jpeg|png|webp))$/.test(ref.mime);
+            return streamStored(ref, { download: !inline });
         }
 
         const user = await getCurrentUser();

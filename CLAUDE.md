@@ -32,4 +32,8 @@
 - Students get materials only as per-student watermarked copies (`server/storage/watermark.js`); admins get the original.
 - PDF viewer uses the pdf.js LEGACY build (`pdfjs-dist/legacy/...`) — the modern build needs JS APIs older Safari/Chrome lack.
 - Admin uploads > 4 MB go through Route Handlers wrapped by `adminUpload()` (`server/admin-route.js`), not Server Actions.
+- Student submissions (P5): `receiveFiles()` streams multipart to `UPLOAD_ROOT/tmp/uploads` with busboy (never buffered), `finalizeFiles()` checks magic bytes (docx/pptx by their ZIP contents) and moves them to `private/students/<studentId>/submissions/<assignmentId>/`. Order on resubmit: new files → DB → delete old files. Deadline = server time the request arrived (`submissionWindow()`).
+- A busboy file stream must be destroyed WITH an error (`stream.destroy(err)`); a plain `destroy()` never settles its pipeline and the request hangs.
+- Early answers to an upload (closed, rate-limited) call `drainBody()` first, otherwise the browser sees a connection reset instead of the JSON error.
+- Streamed ZIP downloads: `archiver` `ZipArchive({ store: true })` piped through a `PassThrough` → `Readable.toWeb()`; files are read one at a time.
 

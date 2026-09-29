@@ -1,8 +1,16 @@
 import Link from "next/link";
-import { BookOpen, CalendarDays, FileQuestion, Megaphone } from "lucide-react";
+import {
+    BookOpen,
+    CalendarDays,
+    ClipboardList,
+    FileQuestion,
+    Megaphone,
+    UserRound,
+} from "lucide-react";
 import { getStudentScope } from "@/server/auth/guards.js";
 import { studentHome } from "@/server/services/student-home.js";
 import { NoticeList } from "@/components/student/NoticeList.js";
+import { AssignmentList } from "@/components/student/AssignmentList.js";
 import { scheduleLabel } from "@/lib/format.js";
 import { inDhaka } from "@/lib/date.js";
 
@@ -13,11 +21,13 @@ const TILES = [
     { href: "/dashboard/question-papers", label: "Question papers", icon: FileQuestion },
     { href: "/dashboard/routine", label: "Routine", icon: CalendarDays },
     { href: "/dashboard/notices", label: "All notices", icon: Megaphone },
+    { href: "/dashboard/assignments", label: "Assignments", icon: ClipboardList },
+    { href: "/dashboard/profile", label: "Profile", icon: UserRound },
 ];
 
 export default async function StudentHome() {
     const scope = await getStudentScope();
-    const { batch, notices } = await studentHome(scope);
+    const { batch, notices, deadlines } = await studentHome(scope);
     const h = inDhaka(new Date()).getHours();
     const hello = h < 12 ? "Good morning" : h < 17 ? "Good afternoon" : "Good evening";
 
@@ -65,6 +75,23 @@ export default async function StudentHome() {
                     </p>
                 )}
             </section>
+
+            {deadlines.length > 0 && (
+                <section aria-labelledby="due-h">
+                    <div className="mb-3 flex items-baseline justify-between">
+                        <h2 id="due-h" className="text-xl font-medium">
+                            Upcoming deadlines
+                        </h2>
+                        <Link
+                            href="/dashboard/assignments"
+                            className="text-sm font-semibold text-burgundy hover:underline"
+                        >
+                            All assignments
+                        </Link>
+                    </div>
+                    <AssignmentList rows={deadlines} serverNow={new Date().toISOString()} />
+                </section>
+            )}
 
             <section aria-label="Shortcuts" className="grid grid-cols-2 gap-3">
                 {TILES.map((t) => (

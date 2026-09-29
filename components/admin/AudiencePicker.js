@@ -14,14 +14,26 @@ const LABELS = {
 /**
  * Audience + targets (FR-NOT-01 / FR-MAT-01). Uncontrolled inputs with mirrored
  * state so the right target list shows.
+ * `kinds` overrides the audience choices (assignments: ["class", "batches"] only — FR-ASG-01).
  * @param {{ options: {id:string,name:string,batches:{id:string,name:string}[]}[], allowPublic?: boolean,
- *   initial?: { audience?: string, classes?: string[], batches?: string[] }, errors?: Record<string,string> }} props
+ *   kinds?: string[], initial?: { audience?: string, classes?: string[], batches?: string[] },
+ *   errors?: Record<string,string> }} props
  */
-export function AudiencePicker({ options, allowPublic = false, initial = {}, errors = {} }) {
-    const [audience, setAudience] = useState(initial.audience ?? "all_students");
-    const kinds = allowPublic
-        ? ["public", "all_students", "class", "batches"]
-        : ["all_students", "class", "batches"];
+export function AudiencePicker({
+    options,
+    allowPublic = false,
+    kinds: only,
+    initial = {},
+    errors = {},
+}) {
+    const kinds =
+        only ??
+        (allowPublic
+            ? ["public", "all_students", "class", "batches"]
+            : ["all_students", "class", "batches"]);
+    const [audience, setAudience] = useState(
+        initial.audience ?? (kinds.includes("all_students") ? "all_students" : kinds.at(-1)),
+    );
     const cls = new Set(initial.classes ?? []);
     const bat = new Set(initial.batches ?? []);
     return (

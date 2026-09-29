@@ -16,9 +16,11 @@ import { Student } from "../server/models/Student.js";
 import { Admission } from "../server/models/Admission.js";
 import { Notice } from "../server/models/Notice.js";
 import { Material } from "../server/models/Material.js";
+import { Assignment } from "../server/models/Assignment.js";
 import { ClassModel } from "../server/models/Class.js";
 import { Batch } from "../server/models/Batch.js";
 import { MailJob } from "../server/models/Jobs.js";
+import { Submission } from "../server/models/Submission.js";
 import { createStudent, purgeStudent, setStudentActive } from "../server/services/students.js";
 import {
     submitAdmission,
@@ -27,6 +29,14 @@ import {
 } from "../server/services/admissions.js";
 import { saveNotice, deleteNotice } from "../server/services/notices.js";
 import { saveMaterial, deleteMaterial } from "../server/services/materials.js";
+import {
+    saveAssignment,
+    deleteAssignment,
+    submitAssignment,
+    reviewSubmission,
+} from "../server/services/assignments.js";
+import { stageFromBuffer } from "../server/storage/submissions.js";
+import { SUBMISSION_FILE_TYPES } from "../lib/constants.js";
 
 const DEMO_DOMAIN = "@demo.test";
 const PASSWORD = "Demo@1234";
@@ -104,6 +114,10 @@ ${["Fri 9:00 - Paper 1 practice", "Sat 9:00 - Paper 2 reading", "Fri 11:00 - Moc
 async function reset() {
     const admin = await User.findOne({ email: ADMIN_EMAIL }).lean();
     const actor = { id: String(admin?._id ?? new mongoose.Types.ObjectId()), role: "super_admin" };
+    if (admin) {
+        for (const a of await Assignment.find({ createdBy: admin._id }).select("_id").lean())
+            await deleteAssignment(String(a._id), actor);
+    }
     const students = await Student.find({
         email: trusted({ $regex: `${DEMO_DOMAIN.replace(".", "\\.")}$` }),
     }).lean();
@@ -125,7 +139,7 @@ async function reset() {
         await User.deleteOne({ _id: admin._id });
     }
     log(
-        `✓ Removed ${students.length} students, ${adms.length} applications, demo notices/materials and the demo admin.`,
+        `✓ Removed ${students.length} students, ${adms.length} applications, demo notices/materials/assignments and the demo admin.`,
     );
 }
 
@@ -470,6 +484,152 @@ async function seed() {
         log(`✓ ${M.length} materials (notes, question papers, routine image, one hidden draft)`);
     } else log("• Materials already seeded — skipped");
 
+    // assignments + submissions (P5)
+    if (!(await Assignment.exists({ createdBy: admin._id }))) {
+        const HOUR = 60 * 60 * 1000;
+        const DAY = 24 * HOUR;
+        const now = Date.now();
+        const base = {
+            instructions: "",
+            classes: [],
+            batches: [],
+            allowLate: false,
+            maxFiles: 5,
+            maxFileSizeMB: 20,
+            allowedTypes: [...SUBMISSION_FILE_TYPES],
+            isPublished: true,
+            removeAttachment: false,
+        };
+        const A = {
+            open: {
+                ...base,
+                title: "Summary writing — 2019 Paper 1",
+                type: "homework",
+                audience: "batches",
+                batches: [ids["Class 9"].batches.A],
+                deadline: new Date(now + 3 * DAY),
+                instructions:
+                    "<p>Read the passage on the attached sheet and write a summary of <strong>150 words</strong>.</p><ul><li>Handwritten photos are fine — make sure they are sharp.</li><li>Or upload a PDF / Word file.</li></ul>",
+            },
+            lateOk: {
+                ...base,
+                title: "Directed writing: letter to the editor",
+                type: "assignment",
+                audience: "class",
+                classes: [ids["Class 9"].id],
+                deadline: new Date(now - 2 * DAY),
+                allowLate: true,
+                instructions:
+                    "<p>Write a letter to the editor about traffic near your school (250–350 words).</p>",
+            },
+            closed: {
+                ...base,
+                title: "Vocabulary list 4 — sentences",
+                type: "homework",
+                audience: "batches",
+                batches: [ids["Class 9"].batches.A, ids["Class 9"].batches.B],
+                deadline: new Date(now - 5 * DAY),
+                instructions: "<p>Use each word from list 4 in a sentence of your own.</p>",
+            },
+            draft: {
+                ...base,
+                title: "Presentation: a person who inspires you",
+                type: "presentation",
+                audience: "class",
+                classes: [ids["Class 10"].id],
+                deadline: new Date(now + 10 * DAY),
+                allowedTypes: ["pptx", "pdf"],
+                maxFiles: 2,
+                isPublished: false,
+                instructions:
+                    "<p>5 minutes, 6–8 slides. Hidden until the teacher publishes it.</p>",
+            },
+            soon: {
+                ...base,
+                title: "Narrative writing — first draft",
+                type: "homework",
+                audience: "batches",
+                batches: [ids["Class 10"].batches.C],
+                deadline: new Date(now + 26 * HOUR),
+                instructions:
+                    "<p>Write the opening 200 words of a story titled <em>The Visit</em>.</p>",
+            },
+        };
+        const aid = {};
+        for (const [k, input] of Object.entries(A)) {
+            const file =
+                k === "open"
+                    ? await pdf(
+                          "Summary passage — 2019",
+                          [["Passage", ["Read carefully, then summarise in 150 words."]]],
+                          1,
+                      )
+                    : null;
+            aid[k] = (await saveAssignment(null, input, file, actor)).id;
+        }
+
+        const scopeOf = async (first) => {
+            const s = await Student.findOne({ email: `${first}${DEMO_DOMAIN}` }).lean();
+            return {
+                studentObjectId: s._id,
+                studentId: s.studentId,
+                fullName: s.fullName,
+                classId: s.class,
+                batchId: s.batch,
+            };
+        };
+        const work = async (name, title) => {
+            const f = await pdf(title, [["Answer", ["Student work for the demo."]]], 1);
+            return stageFromBuffer(Buffer.from(await f.arrayBuffer()), name);
+        };
+        const photo = async (name) => {
+            const f = await routineImage("Handwritten page 1");
+            return stageFromBuffer(Buffer.from(await f.arrayBuffer()), name);
+        };
+        const [sadia, arian, maisha] = await Promise.all(["sadia", "arian", "maisha"].map(scopeOf));
+        const dl = (k) => A[k].deadline.getTime();
+        // open: Sadia on time (PDF + photo); Arian not yet
+        await submitAssignment(
+            aid.open,
+            sadia,
+            [await work("summary-sadia.pdf", "Summary"), await photo("page-1.png")],
+            new Date(now - 2 * HOUR),
+        );
+        // late allowed: Sadia on time + reviewed; Maisha late (after the deadline)
+        await submitAssignment(
+            aid.lateOk,
+            sadia,
+            [await work("letter.pdf", "Letter")],
+            new Date(dl("lateOk") - DAY),
+        );
+        const sadiaSub = await Submission.findOne({
+            assignment: aid.lateOk,
+            student: sadia.studentObjectId,
+        }).lean();
+        await reviewSubmission(
+            aid.lateOk,
+            String(sadiaSub._id),
+            { feedback: "Clear purpose and good tone. Watch your paragraphing.", marks: 17.5 },
+            actor,
+        );
+        await submitAssignment(
+            aid.lateOk,
+            maisha,
+            [await work("maisha-letter.pdf", "Letter")],
+            new Date(now - HOUR),
+        );
+        // closed: Arian on time; Sadia + Maisha missing
+        await submitAssignment(
+            aid.closed,
+            arian,
+            [await work("vocab-4.pdf", "Vocabulary")],
+            new Date(dl("closed") - 2 * HOUR),
+        );
+        log(
+            "✓ 5 assignments (open 9A, late-allowed Class 9, closed 9A+9B, hidden draft Class 10, due-tomorrow 10C) + 4 submissions",
+        );
+    } else log("• Assignments already seeded — skipped");
+
     // Seeding queued account/admission emails to fake addresses — drop them.
     const dropped = await MailJob.deleteMany({
         createdAt: trusted({ $gte: started }),
@@ -480,9 +640,10 @@ async function seed() {
     log(`
 Logins (password for all: ${PASSWORD})
   Admin (not super):  ${ADMIN_EMAIL}
-  Student 9A:          sadia${DEMO_DOMAIN}   ← sees the batch-9A notice + notes
-  Student 9B:          maisha${DEMO_DOMAIN}  ← must NOT see 9A items
-  Student 10C:         adnan${DEMO_DOMAIN}
+  Student 9A:          sadia${DEMO_DOMAIN}   ← sees the batch-9A notice + notes; 2 assignments handed in
+  Student 9A:          arian${DEMO_DOMAIN}   ← open 9A homework not yet handed in
+  Student 9B:          maisha${DEMO_DOMAIN}  ← must NOT see 9A items; one late submission
+  Student 10C:         adnan${DEMO_DOMAIN}   ← homework due in ~26 h (countdown)
   Inactive student:    lamia${DEMO_DOMAIN}   ← login is blocked
 `);
 }

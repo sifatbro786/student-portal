@@ -2,15 +2,18 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BookOpen, CalendarDays, FileQuestion, Home, Megaphone } from "lucide-react";
+import { BookOpen, CalendarDays, ClipboardList, FileQuestion, Home, Megaphone } from "lucide-react";
 import { cx } from "@/components/ui/cx.js";
 
+// `short`: label in the phone tab bar. `bottom: false`: tabs row only — the phone
+// bar fits 5 items; Routine stays reachable from the home screen tiles.
 const ITEMS = [
     { href: "/dashboard", label: "Home", icon: Home, exact: true },
     { href: "/dashboard/notices", label: "Notices", icon: Megaphone },
+    { href: "/dashboard/assignments", label: "Assignments", short: "Tasks", icon: ClipboardList },
     { href: "/dashboard/materials", label: "Notes", icon: BookOpen },
     { href: "/dashboard/question-papers", label: "Papers", icon: FileQuestion },
-    { href: "/dashboard/routine", label: "Routine", icon: CalendarDays },
+    { href: "/dashboard/routine", label: "Routine", icon: CalendarDays, bottom: false },
 ];
 
 /**
@@ -51,7 +54,7 @@ export function StudentNav({ variant }) {
             className="fixed inset-x-0 bottom-0 z-20 border-t border-line bg-surface/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-sm sm:hidden"
         >
             <ul className="grid grid-cols-5">
-                {ITEMS.map((i) => (
+                {ITEMS.filter((i) => i.bottom !== false).map((i) => (
                     <li key={i.href}>
                         <Link
                             href={i.href}
@@ -69,7 +72,7 @@ export function StudentNav({ variant }) {
                             >
                                 <i.icon aria-hidden="true" className="size-5" strokeWidth={1.8} />
                             </span>
-                            {i.label}
+                            {i.short ?? i.label}
                         </Link>
                     </li>
                 ))}
