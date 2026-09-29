@@ -6,6 +6,12 @@ import { useEffect, useRef, useState } from "react";
 import {
     Award,
     BookOpen,
+    CalendarDays,
+    FileQuestion,
+    Home,
+    Trophy,
+    UserRound,
+    Wallet,
     ChevronsUpDown,
     ClipboardCheck,
     ClipboardList,
@@ -35,13 +41,32 @@ const ICONS = {
     ClipboardList,
     ClipboardCheck,
     Award,
+    // student portal
+    Home,
+    FileQuestion,
+    CalendarDays,
+    Trophy,
+    UserRound,
+    Wallet,
 };
 
 /**
  * Desktop: fixed left sidebar. Mobile: top bar + slide-in drawer.
+ * Shared by the admin and the student portal: `nav` (groups of { href, label, icon })
+ * defaults to ADMIN_NAV; `homeHref` is where the logo points.
  * `logoutAction` / `logoutAllAction` are Server Actions passed from the layout.
  */
-export function Sidebar({ user, roleLabel, logoutAction, logoutAllAction, badges = {} }) {
+export function Sidebar({
+    user,
+    roleLabel,
+    logoutAction,
+    logoutAllAction,
+    badges = {},
+    nav: navGroups = ADMIN_NAV,
+    homeHref = "/admin",
+    label = "Admin",
+    profileHref,
+}) {
     const pathname = usePathname();
     // The drawer is "open for a path": navigating away closes it without an effect.
     const [openOn, setOpenOn] = useState(null);
@@ -58,14 +83,14 @@ export function Sidebar({ user, roleLabel, logoutAction, logoutAllAction, badges
         };
     }, [open]);
 
-    const groups = ADMIN_NAV.filter((g) => !g.superAdminOnly || user.role === "super_admin");
+    const groups = navGroups.filter((g) => !g.superAdminOnly || user.role === "super_admin");
     const isActive = (item) =>
         item.exact
             ? pathname === item.href
             : pathname === item.href || pathname.startsWith(`${item.href}/`);
 
     const nav = (
-        <nav aria-label="Admin" className="flex-1 overflow-y-auto px-3 py-6">
+        <nav aria-label={label} className="flex-1 overflow-y-auto px-3 py-6">
             {groups.map((g) => (
                 <div key={g.label} className="mb-6">
                     <p className="eyebrow mb-2 px-3 text-[0.62rem] text-muted">{g.label}</p>
@@ -94,7 +119,7 @@ export function Sidebar({ user, roleLabel, logoutAction, logoutAllAction, badges
                                         {item.badge && badges[item.badge] > 0 && (
                                             <span className="ml-auto rounded-full bg-burgundy px-2 py-0.5 text-[0.7rem] font-bold text-paper tabular-nums">
                                                 {badges[item.badge]}
-                                                <span className="sr-only"> waiting</span>
+                                                <span className="sr-only"> pending</span>
                                             </span>
                                         )}
                                     </Link>
@@ -112,6 +137,7 @@ export function Sidebar({ user, roleLabel, logoutAction, logoutAllAction, badges
             user={user}
             roleLabel={roleLabel}
             pathname={pathname}
+            profileHref={profileHref}
             logoutAction={logoutAction}
             logoutAllAction={logoutAllAction}
         />
@@ -121,7 +147,7 @@ export function Sidebar({ user, roleLabel, logoutAction, logoutAllAction, badges
         <>
             {/* Mobile top bar */}
             <div className="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-line bg-paper/95 px-4 backdrop-blur-sm lg:hidden">
-                <Logo href="/admin" />
+                <Logo href={homeHref} />
                 <button
                     type="button"
                     onClick={() => setOpen(true)}
@@ -147,12 +173,12 @@ export function Sidebar({ user, roleLabel, logoutAction, logoutAllAction, badges
             <aside
                 id="admin-sidebar"
                 className={cx(
-                    "grain fixed inset-y-0 left-0 z-50 flex w-68 flex-col border-r border-line bg-paper-deep transition-transform duration-300 ease-editorial lg:translate-x-0",
+                    "grain fixed inset-y-0 left-0 z-50 flex w-72 max-w-[85vw] flex-col lg:w-68 border-r border-line bg-paper-deep transition-transform duration-300 ease-editorial lg:translate-x-0",
                     open ? "translate-x-0" : "-translate-x-full",
                 )}
             >
-                <div className="flex h-18 items-center justify-between border-b border-line px-5">
-                    <Logo href="/admin" />
+                <div className="flex h-18 items-center justify-between gap-2 border-b border-line px-4 lg:px-5">
+                    <Logo href={homeHref} />
                     <button
                         type="button"
                         onClick={() => setOpen(false)}
@@ -173,7 +199,7 @@ export function Sidebar({ user, roleLabel, logoutAction, logoutAllAction, badges
  * Compact account row at the bottom of the sidebar. Opens an upward menu
  * (Change password / Log out of all devices / Log out) — one row instead of four.
  */
-function AccountMenu({ user, roleLabel, pathname, logoutAction, logoutAllAction }) {
+function AccountMenu({ user, roleLabel, pathname, profileHref, logoutAction, logoutAllAction }) {
     const [openOn, setOpenOn] = useState(null); // closes itself on navigation
     const open = openOn === pathname;
     const ref = useRef(null);
@@ -200,6 +226,11 @@ function AccountMenu({ user, roleLabel, pathname, logoutAction, logoutAllAction 
                     role="menu"
                     className="absolute inset-x-3 bottom-full mb-2 rounded-lg border border-line bg-surface p-1.5 shadow-[0_18px_40px_-20px_rgb(31_26_23/0.35)]"
                 >
+                    {profileHref && (
+                        <Link href={profileHref} role="menuitem" className={item}>
+                            <UserRound aria-hidden="true" className="size-4" /> My profile
+                        </Link>
+                    )}
                     <Link href="/change-password" role="menuitem" className={item}>
                         <KeyRound aria-hidden="true" className="size-4" /> Change password
                     </Link>

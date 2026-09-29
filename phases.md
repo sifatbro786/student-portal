@@ -5,7 +5,7 @@
 > Brand: শুধু Tauhid Mostafa personal brand (MIE Academy নয়) — [DECIDED]।
 
 ## ▶ START HERE (new chat)
-- **Next phase: P7 — Payments.** P1–P6 done and delivered to the repo.
+- **Next phase: P8 — Public site & SEO.** P1–P7 done and delivered to the repo.
 - Before coding, read **HANDOVER.md** (project doc): working method, environment, conventions, next-phase checklist.
 - Repo on the user's PC: `E:\Works\Tauhid Mostafa\tauhid-mostafa` (via the device bridge). Read the repo's `CLAUDE.md` first.
 
@@ -18,8 +18,10 @@
 - ✅ P5 Assignments — 2026-09-29 (admin CRUD + review table + feedback/marks + streamed ZIP; student list/countdown/upload with progress; busboy streaming uploads; 33 service + 39 e2e checks incl. 9B → 9A 404, server-side deadline, resubmit deletes old files, 95 MB ZIP streamed with flat memory)
 - ✅ P5 follow-up — 2026-09-29: reviewed submission = locked (atomic); dev image warning fixed
 - ✅ P6 Results & Honor Board — 2026-09-29 (exams CRUD, result grid + bulk save, CSV import with row report, stats, student results + dashboard card; honor admin with photos 600/200, consent, reorder, year headings, add-from-student, cached public reader tag `honor` + admin preview; `/media` dev fallback; `npm run seed:honor`; 38 service + 31 e2e checks)
-- ⏭ **P7 Payments — next, not started**
-- ⏳ P8 · P9
+- ✅ Student portal shell — 2026-09-29: same sidebar system as the admin (fixed sidebar ≥ lg, top bar + drawer on phones); dashboard home redesigned as a 2-column layout; bottom tab bar removed
+- ✅ P7 Payments — 2026-09-29 (idempotent monthly generation + create/reactivate hooks + cron 00:05 day 1 + `npm run fees:generate`; matrix with sticky header/column, confirm popover, totals; list with filters, bulk, streamed CSV; audit per change; admin dashboard cards §4.13; 21 service + 15 e2e checks)
+- ⏭ **P8 Public site & SEO — next, not started**
+- ⏳ P9
 
 ## Decisions after the PRD
 - [DECIDED 2026-09-28] **No Cloudflare Turnstile.** FR-ADM-05 anti-spam = honeypot + signed min-fill-time token + 3/IP/hour rate limit + Nginx limit_req.
@@ -37,10 +39,13 @@
 - [DECIDED — P5] Student uploads are streamed to disk with `busboy` (`server/storage/submissions.js`), never buffered in memory (5 × 20 MB per request). Staging folder `UPLOAD_ROOT/tmp/uploads` — P9 cleanup job should delete staged files older than 1 day (left only if the process crashes mid-upload).
 - [DECIDED — P5] Lateness uses the time the request ARRIVED (server clock); uploads are capped at 10 minutes. Re-submitting after the deadline (allowLate on) marks the submission late.
 - [DECIDED 2026-09-29 — Sifat] A reviewed submission is LOCKED: once an admin saves feedback/marks the student can't replace it (atomic filter `reviewedAt $exists:false` in the upsert). Each new assignment is submitted separately as usual.
-- [NOTED — P6] Phone bottom bar = Home · Notices · Tasks · Notes · Results. Papers + Routine live in the tab row (≥ sm) and the home tiles (the phone bar fits 5).
+- [DECIDED 2026-09-29 — Sifat] Student portal uses the admin's sidebar shell (`components/admin/Sidebar.js` with `nav={STUDENT_NAV}` from `components/student/nav.js`). The phone bottom bar and the header tab row are gone; phones get top bar + drawer + home-screen shortcut tiles. `components/student/StudentNav.js` and `components/shell/AccountBar.js` are now unused (safe to delete).
 - [DECIDED — P6] Results: blank marks = no result (entry removed). CSV import is all-or-nothing with a row report. Exam class can't change once results exist; changing full marks recomputes every %. Stats are computed in JS from one exam's entries (FerretDB lacks `$avg`; tiny data).
 - [DECIDED — P6] Honor photos: `UPLOAD_ROOT/public/honor/<year>/` (600×600 + 200×200 WebP), URL `${PUBLIC_MEDIA_BASE}/honor/...`. Nginx serves `/media` in prod; `app/media/[...path]` is only a local fallback (public/ only). Model got a `thumb` FileRef (PRD FR-HON-04 needs two sizes). Photos never reach the public reader without consent.
 - [DECIDED — P6] Public honor data = `getPublicHonorBoard()` in `server/services/honor-public.js` (`unstable_cache`, tag `honor`, 1 h safety net). Admin saves call `updateTag`/`revalidateTag("honor", { expire: 0 })`. P8 builds the public pages on it.
+- [DECIDED — P7] Fee matrix = one indexed find over the year's FeeRecords + one student lookup, grouped in JS (FerretDB has no `$push`; PRD §14 "one aggregation" intent = no N+1). Rows/cells follow the SNAPSHOT batch, so a batch change keeps old months under the old batch.
+- [DECIDED — P7] Records are created for ACTIVE students on the 1st (cron, also on cron boot to catch up), on create and on reactivate. Deactivation never deletes records (shown greyed). The admin "Create this month's records" button runs the same idempotent job. "Due this month" on the dashboard counts active students only.
+- [DECIDED — P7] CSV export streams in pages of 500 with a UTF-8 BOM and neutralises formula-leading cells (`= + - @`).
 - [NOTED — P6] 2026 honor list (20 names, no photos, published) is seeded by `npm run seed:honor` (idempotent, production-safe) — not part of the demo seed.
 
 ## Global rules (সব phase এ)
@@ -96,14 +101,14 @@
 - **P6.4** Seed 2026 board (CLIENT-INFO.md এর 20 জন — নাম/grade/%; photo শুধু consent পাওয়ার পর)।
 - **Done when:** unpublished exam student এর কাছে invisible; honor save এ public page revalidate।
 
-## P7 — Payments ⏭ NEXT
+## P7 — Payments ✅
 - **P7.1** `generateFeeRecords(period)` idempotent upsert + snapshot; create/reactivate hook; cron 00:05 day-1।
 - **P7.2** Matrix view (single aggregation, sticky col/header, confirm popover toggle, totals)।
 - **P7.3** List view (filters, bulk mark paid, CSV export), audit on every change।
 - **P7.4** Admin dashboard cards (active students, pending admissions, submissions 7d, due this month)।
 - **Done when:** cron দুবার চালালেও duplicate নেই; batch change এর পর পুরনো মাস ঠিক থাকে।
 
-## P8 — Public site & SEO
+## P8 — Public site & SEO ⏭ NEXT
 - **P8.1** SiteContent CMS (singleton, seed from CLIENT-INFO: bio, ex-faculty, 17+ yrs, 2 campuses, phone, email)।
 - **P8.2** Homepage: Hero → Honor Board → About → Education → Experience timeline → Notice Board → Class info/venues/map → Contact/WhatsApp। Faculty marquee, numbered highlights (01–04)। **+ Testimonials / Gallery if confirmed.**
 - **P8.3** `/honor-board` (year index-tabs), `/notices`, `/notices/[slug]`।

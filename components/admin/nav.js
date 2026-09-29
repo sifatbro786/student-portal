@@ -33,6 +33,10 @@ export const ADMIN_NAV = [
         ],
     },
     {
+        label: "Office",
+        items: [{ href: "/admin/payments", label: "Payments", icon: "Wallet" }],
+    },
+    {
         label: "Website",
         items: [{ href: "/admin/honor-board", label: "Honor board", icon: "Award" }],
     },

@@ -506,3 +506,43 @@ export async function upcomingForStudent(scope, n = 3) {
     const list = await listAssignmentsForStudent(scope, { limit: 50 });
     return list.filter((a) => a.upcoming && a.status === "not_submitted").slice(0, n);
 }
+
+// ------------------------------------------------------------------ admin dashboard (PRD §4.13)
+/** Submissions handed in during the last 7 days that nobody has reviewed yet. */
+export async function countSubmissionsAwaitingReview(days = 7) {
+    await connectDB();
+    return Submission.countDocuments({
+        submittedAt: trusted({ $gte: new Date(Date.now() - days * 24 * 60 * 60 * 1000) }),
+        reviewedAt: trusted({ $exists: false }),
+    });
+}
+
+/** Published assignments due in the next `days` days, soonest first. */
+export async function upcomingDeadlinesAdmin(days = 7, limit = 5) {
+    await connectDB();
+    const now = new Date();
+    const rows = await Assignment.find({
+        isPublished: true,
+        deadline: trusted({ $gte: now, $lte: new Date(now.getTime() + days * 86_400_000) }),
+    })
+        .sort({ deadline: 1 })
+        .limit(limit)
+        .select("title type deadline audience classes batches")
+        .lean();
+    if (!rows.length) return [];
+    const [counts, maps] = await Promise.all([
+        Submission.aggregate([
+            { $match: { assignment: { $in: rows.map((r) => r._id) } } },
+            { $group: { _id: "$assignment", n: { $sum: 1 } } },
+        ]),
+        labelMaps(),
+    ]);
+    const cm = new Map(counts.map((c) => [String(c._id), c.n]));
+    return rows.map((a) => ({
+        id: String(a._id),
+        title: a.title,
+        deadline: a.deadline,
+        audienceText: audienceLabel(a, maps.classMap, maps.batchMap),
+        submissions: cm.get(String(a._id)) ?? 0,
+    }));
+}

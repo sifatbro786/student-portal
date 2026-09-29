@@ -38,6 +38,9 @@ import {
 } from "../server/services/assignments.js";
 import { stageFromBuffer } from "../server/storage/submissions.js";
 import { saveExam, saveResults, deleteExam } from "../server/services/results.js";
+import { generateFeeRecords, bulkSetFeeStatus } from "../server/services/payments.js";
+import { FeeRecord } from "../server/models/FeeRecord.js";
+import { periodOf } from "../lib/date.js";
 import { SUBMISSION_FILE_TYPES } from "../lib/constants.js";
 
 const DEMO_DOMAIN = "@demo.test";
@@ -689,6 +692,36 @@ async function seed() {
         }
         log("✓ 3 exams (2 published, 1 hidden) with results");
     } else log("• Exams already seeded — skipped");
+
+    // fee records (P7): current month + the two before, mixed statuses.
+    // (Removed by --reset automatically: purging a student deletes their records.)
+    const demoIds = (
+        await Student.find({
+            email: trusted({ $regex: `${DEMO_DOMAIN.replace(".", "\\.")}$` }),
+        })
+            .select("_id")
+            .lean()
+    ).map((s) => s._id);
+    if (!(await FeeRecord.exists({ student: trusted({ $in: demoIds }), status: "paid" }))) {
+        const periods = [2, 1, 0].map((back) => {
+            const d = new Date();
+            d.setUTCDate(15);
+            d.setUTCMonth(d.getUTCMonth() - back);
+            return periodOf(d);
+        });
+        for (const p of periods) await generateFeeRecords(p, { studentIds: demoIds });
+        const recs = await FeeRecord.find({ student: trusted({ $in: demoIds }) })
+            .select("period")
+            .sort({ period: 1, _id: 1 })
+            .lean();
+        const older = recs.filter((r) => r.period !== periods[2]).map((r) => String(r._id));
+        const current = recs.filter((r) => r.period === periods[2]).map((r) => String(r._id));
+        // older months: almost everyone paid, one waived; this month: a few paid so far
+        await bulkSetFeeStatus(older.slice(0, -3), { status: "paid" }, actor);
+        await bulkSetFeeStatus(older.slice(-1), { status: "waived", note: "Scholarship" }, actor);
+        await bulkSetFeeStatus(current.slice(0, 4), { status: "paid" }, actor);
+        log(`✓ Fee records for ${periods.join(", ")} (paid / due / waived mix)`);
+    } else log("• Fee records already seeded — skipped");
 
     // Seeding queued account/admission emails to fake addresses — drop them.
     const dropped = await MailJob.deleteMany({

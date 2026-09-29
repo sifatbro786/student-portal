@@ -1,12 +1,17 @@
 import Link from "next/link";
-import { ArrowRight, Inbox, Layers, UserPlus } from "lucide-react";
+import { ArrowRight, ClipboardList, Inbox, UserPlus, Wallet } from "lucide-react";
 import { requireAuth } from "@/server/auth/guards.js";
-import { countStudents, listStudents } from "@/server/services/students.js";
-import { listClassesWithStats } from "@/server/services/academics.js";
-import { countPendingAdmissions } from "@/server/services/admissions.js";
+import { countStudents } from "@/server/services/students.js";
+import { countPendingAdmissions, listAdmissions } from "@/server/services/admissions.js";
+import {
+    countSubmissionsAwaitingReview,
+    upcomingDeadlinesAdmin,
+} from "@/server/services/assignments.js";
+import { countDueThisMonth } from "@/server/services/payments.js";
 import { Button } from "@/components/ui/Button.js";
 import { Panel } from "@/components/ui/Panel.js";
-import { formatDate, inDhaka } from "@/lib/date.js";
+import { AdmissionStatus } from "@/components/admin/AdmissionStatus.js";
+import { formatDate, formatDateTime, formatPeriod, inDhaka, periodOf } from "@/lib/date.js";
 
 export const metadata = { title: "Dashboard" };
 
@@ -15,20 +20,32 @@ function greeting() {
     return h < 12 ? "Good morning" : h < 17 ? "Good afternoon" : "Good evening";
 }
 
+// PRD §4.13 admin dashboard. Plain figures, no count-up animation (PRD §13).
 export default async function AdminHome() {
     const user = await requireAuth(["super_admin", "admin"]);
-    const [counts, classes, recent, pending] = await Promise.all([
+    const [counts, pending, awaiting, due, admissions, deadlines] = await Promise.all([
         countStudents(),
-        listClassesWithStats(),
-        listStudents({ status: "all", page: 1, pageSize: 5 }),
         countPendingAdmissions(),
+        countSubmissionsAwaitingReview(7),
+        countDueThisMonth(),
+        listAdmissions({ status: "all", page: 1, pageSize: 5 }),
+        upcomingDeadlinesAdmin(7, 5),
     ]);
-    const batchCount = classes.reduce((n, c) => n + c.batchCount, 0);
     const stats = [
         { label: "Active students", value: counts.active, href: "/admin/students" },
         { label: "Pending admissions", value: pending, href: "/admin/admissions" },
-        { label: "Classes", value: classes.length, href: "/admin/classes" },
-        { label: "Batches", value: batchCount, href: "/admin/classes" },
+        {
+            label: "Submissions to review",
+            hint: "last 7 days",
+            value: awaiting,
+            href: "/admin/assignments",
+        },
+        {
+            label: `Due for ${formatPeriod(periodOf())}`,
+            hint: "students",
+            value: due,
+            href: "/admin/payments/list",
+        },
     ];
 
     return (
@@ -48,7 +65,10 @@ export default async function AdminHome() {
                         href={s.href}
                         className={`group px-1 py-5 sm:px-5 ${i % 2 ? "border-l border-line" : ""} ${i === 2 ? "border-t border-line lg:border-t-0 lg:border-l" : ""} ${i === 3 ? "border-t lg:border-t-0" : ""}`}
                     >
-                        <dt className="text-sm text-muted group-hover:text-burgundy">{s.label}</dt>
+                        <dt className="text-sm text-muted group-hover:text-burgundy">
+                            {s.label}
+                            {s.hint && <span className="block text-xs">{s.hint}</span>}
+                        </dt>
                         <dd className="mt-1 font-serif text-4xl font-medium tabular-nums">
                             {s.value}
                         </dd>
@@ -57,46 +77,89 @@ export default async function AdminHome() {
             </dl>
 
             <div className="mt-10 grid items-start gap-8 lg:grid-cols-[minmax(0,1fr)_20rem]">
-                <Panel
-                    title="Recently added students"
-                    actions={
-                        <Link
-                            href="/admin/students"
-                            className="inline-flex items-center gap-1 text-sm font-semibold text-burgundy hover:underline"
-                        >
-                            All students <ArrowRight aria-hidden="true" className="size-4" />
-                        </Link>
-                    }
-                >
-                    {recent.rows.length === 0 ? (
-                        <p className="text-sm text-muted">No students yet.</p>
-                    ) : (
-                        <ul className="-my-2 divide-y divide-line">
-                            {recent.rows.map((s) => (
-                                <li
-                                    key={String(s._id)}
-                                    className="flex items-center justify-between gap-4 py-3"
-                                >
-                                    <span className="min-w-0">
-                                        <Link
-                                            href={`/admin/students/${s._id}`}
-                                            className="font-semibold hover:text-burgundy"
-                                        >
-                                            {s.fullName}
-                                        </Link>
-                                        <span className="block text-xs text-muted">
-                                            <span className="font-mono">{s.studentId}</span> ·{" "}
-                                            {s.class?.name} · Batch {s.batch?.name}
+                <div className="space-y-8">
+                    <Panel
+                        title="Recent admissions"
+                        actions={
+                            <Link
+                                href="/admin/admissions"
+                                className="inline-flex items-center gap-1 text-sm font-semibold text-burgundy hover:underline"
+                            >
+                                All <ArrowRight aria-hidden="true" className="size-4" />
+                            </Link>
+                        }
+                    >
+                        {admissions.rows.length === 0 ? (
+                            <p className="text-sm text-muted">No applications yet.</p>
+                        ) : (
+                            <ul className="-my-2 divide-y divide-line">
+                                {admissions.rows.map((a) => (
+                                    <li
+                                        key={String(a._id)}
+                                        className="flex items-center justify-between gap-4 py-3"
+                                    >
+                                        <span className="min-w-0">
+                                            <Link
+                                                href={`/admin/admissions/${a._id}`}
+                                                className="font-semibold hover:text-burgundy"
+                                            >
+                                                {a.fullName}
+                                            </Link>
+                                            <span className="block text-xs text-muted">
+                                                <span className="font-mono">{a.refNo}</span> ·{" "}
+                                                {a.class?.name} · {formatDate(a.createdAt)}
+                                            </span>
                                         </span>
-                                    </span>
-                                    <span className="shrink-0 text-xs text-muted">
-                                        {formatDate(s.createdAt)}
-                                    </span>
-                                </li>
-                            ))}
-                        </ul>
-                    )}
-                </Panel>
+                                        <AdmissionStatus
+                                            status={a.status}
+                                            converted={!!a.student}
+                                        />
+                                    </li>
+                                ))}
+                            </ul>
+                        )}
+                    </Panel>
+
+                    <Panel
+                        title="Deadlines this week"
+                        actions={
+                            <Link
+                                href="/admin/assignments?status=open"
+                                className="inline-flex items-center gap-1 text-sm font-semibold text-burgundy hover:underline"
+                            >
+                                Assignments <ArrowRight aria-hidden="true" className="size-4" />
+                            </Link>
+                        }
+                    >
+                        {deadlines.length === 0 ? (
+                            <p className="text-sm text-muted">Nothing due in the next 7 days.</p>
+                        ) : (
+                            <ul className="-my-2 divide-y divide-line">
+                                {deadlines.map((d) => (
+                                    <li
+                                        key={d.id}
+                                        className="flex items-center justify-between gap-4 py-3"
+                                    >
+                                        <span className="min-w-0">
+                                            <Link
+                                                href={`/admin/assignments/${d.id}`}
+                                                className="font-semibold hover:text-burgundy"
+                                            >
+                                                {d.title}
+                                            </Link>
+                                            <span className="block text-xs text-muted">
+                                                {d.audienceText} · due {formatDateTime(d.deadline)}
+                                            </span>
+                                        </span>
+                                        <span className="shrink-0 text-xs text-muted tabular-nums">
+                                            {d.submissions} handed in
+                                        </span>
+                                    </li>
+                                ))}
+                            </ul>
+                        )}
+                    </Panel>
+                </div>
 
                 <Panel title="Quick actions">
                     <div className="grid gap-2">
@@ -110,9 +173,19 @@ export default async function AdminHome() {
                         >
                             <Inbox aria-hidden="true" className="size-4" /> Review admissions
                         </Button>
-                        <Button href="/admin/classes" variant="secondary" className="justify-start">
-                            <Layers aria-hidden="true" className="size-4" /> Manage classes &
-                            batches
+                        <Button
+                            href="/admin/assignments/new"
+                            variant="secondary"
+                            className="justify-start"
+                        >
+                            <ClipboardList aria-hidden="true" className="size-4" /> New assignment
+                        </Button>
+                        <Button
+                            href="/admin/payments"
+                            variant="secondary"
+                            className="justify-start"
+                        >
+                            <Wallet aria-hidden="true" className="size-4" /> Payments
                         </Button>
                     </div>
                 </Panel>

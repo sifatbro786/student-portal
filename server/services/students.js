@@ -9,6 +9,7 @@ import { BatchChangeLog } from "../models/BatchChangeLog.js";
 import { Submission } from "../models/Submission.js";
 import { ResultEntry } from "../models/Exam.js";
 import { FeeRecord } from "../models/FeeRecord.js";
+import { ensureCurrentFeeRecord } from "./payments.js";
 import { HonorEntry } from "../models/Honor.js";
 import { Admission } from "../models/Admission.js";
 import { hashPassword } from "../auth/password.js";
@@ -120,6 +121,7 @@ export async function createStudent(input, actor, { admissionId } = {}) {
         action: "student.create",
         target: { type: "student", id: created.studentId },
     });
+    await ensureCurrentFeeRecord(studentObjectId); // FR-PAY-03, after commit
     // After commit: copy the application photo into the student's own folder.
     if (admissionPhoto?.key) {
         try {
@@ -290,7 +292,7 @@ export async function setStudentActive(id, active, actor) {
             }
             await Student.updateOne({ _id: s._id }, { $set: { status: "active" } }, { session });
             await User.updateOne({ _id: s.user }, { $set: { isActive: true } }, { session });
-            // P7: upsert the current period's FeeRecord here (FR-PAY-03).
+            // FR-PAY-03: the current period's FeeRecord is upserted after commit (below).
         } else {
             if (s.status === "inactive") return s.studentId;
             await Student.updateOne({ _id: s._id }, { $set: { status: "inactive" } }, { session });
@@ -302,6 +304,7 @@ export async function setStudentActive(id, active, actor) {
         }
         return s.studentId;
     });
+    if (active) await ensureCurrentFeeRecord(id); // FR-PAY-03 (idempotent)
     await writeAudit({
         actor: actor.id,
         actorRole: actor.role,

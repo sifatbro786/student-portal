@@ -22,7 +22,7 @@
 - Never run parallel queries (`Promise.all`) on one transaction session. Use `withTransaction()` from `server/db.js`.
 - Never pass Mongoose docs (ObjectId/Date) to Client Components — map to plain values first.
 - Forms: uncontrolled inputs (`defaultValue`/`defaultChecked`). React resets forms after each action, and controlled radios/selects lose their DOM value on that reset.
-- Admin sidebar items live in `components/admin/nav.js`. Only add links for modules that already exist.
+- Sidebar items: admin in `components/admin/nav.js`, student in `components/student/nav.js` — both rendered by `components/admin/Sidebar.js` (add new icons to its `ICONS`). Only add links for modules that already exist.
 - Formatting: Prettier, printWidth 100, tabWidth 4.
 - Uploads: `saveImage()` in `server/storage/files.js` (magic bytes → sharp → WebP, EXIF stripped). Route Handlers read multipart with `readLimitedFormData()` (streaming byte cap). Private files are served only by `app/api/files/[kind]/[id]` (404 when out of scope).
 - Emails are queued with `enqueueMail()` and sent by `npm run cron` (separate process). Templates live in `server/mail/templates.js` and must escape every value.
@@ -41,3 +41,5 @@
 - Result grid / honor reorder submit via `startTransition(() => formAction(fd))`, not `<form action>`, so React doesn't reset the form when rows come back with errors.
 - Public honor photos: `UPLOAD_ROOT/public/honor/<year>/`, URL via `mediaUrl()`; Nginx serves `/media` (P9). Mutations on honor data must call `updateTag("honor")` (actions) or `revalidateTag("honor", { expire: 0 })` (route handlers).
 - Avoid `$avg`/`$max` in aggregations while testing on FerretDB; small per-exam stats are computed in JS.
+- Payments (P7): `generateFeeRecords(period)` is the only way records are created (bulk upsert + `$setOnInsert` snapshots — idempotent). Status changes go through `setFeeStatus`/`bulkSetFeeStatus` (they write the audit log). Nothing about fees is ever imported by student pages.
+- FerretDB (test DB) also lacks `$push`; group in JS or verify an accumulator before relying on it.

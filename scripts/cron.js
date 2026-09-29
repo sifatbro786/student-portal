@@ -3,6 +3,7 @@
 // Jobs are added per phase: mail (P3), fee generation (P7), file cleanup (P9).
 import cron from "node-cron";
 import { mailStatus, processMailQueue, verifySmtp } from "../server/mail/worker.js";
+import { generateFeeRecords } from "../server/services/payments.js";
 import { log } from "../server/log.js";
 
 const TZ = "Asia/Dhaka";
@@ -29,7 +30,19 @@ cron.schedule(
     { timezone: TZ },
 );
 
-log.info("cron.started", { jobs: ["mail (every minute)"], tz: TZ });
+// FR-PAY-03: 00:05 Asia/Dhaka on the 1st — idempotent, so a re-run is harmless.
+cron.schedule(
+    "5 0 1 * *",
+    guarded("fees", () => generateFeeRecords()),
+    { timezone: TZ },
+);
+
+log.info("cron.started", {
+    jobs: ["mail (every minute)", "fees (00:05 on day 1)"],
+    tz: TZ,
+});
+// If the server was down at 00:05 on the 1st, catch up now (no duplicates possible).
+guarded("fees", () => generateFeeRecords())();
 
 // Boot diagnostics: say clearly whether mail can actually go out.
 try {

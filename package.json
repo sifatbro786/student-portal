@@ -12,7 +12,8 @@
         "cron": "node --conditions=react-server --env-file=.env scripts/cron.js",
         "mail:test": "node --conditions=react-server --env-file=.env scripts/mail-test.js",
         "seed:demo": "node --conditions=react-server --env-file=.env scripts/seed-demo.js",
-        "seed:honor": "node --conditions=react-server --env-file=.env scripts/seed-honor.js"
+        "seed:honor": "node --conditions=react-server --env-file=.env scripts/seed-honor.js",
+        "fees:generate": "node --conditions=react-server --env-file=.env scripts/fees-generate.js"
     },
     "dependencies": {
         "@date-fns/tz": "^1.5.0",
