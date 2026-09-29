@@ -1,21 +1,42 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, Paperclip } from "lucide-react";
-import { getPublicNotice } from "@/server/services/site-public.js";
-import { JsonLd } from "@/components/public/JsonLd.js";
+import { getPublicNotice, getPublicSite } from "@/server/services/site-public.js";
+import { JsonLd, breadcrumbJsonLd } from "@/components/public/JsonLd.js";
 import { formatDate } from "@/lib/date.js";
 import { baseUrl } from "@/lib/site-url.js";
+import { baseOpenGraph, mergeKeywords } from "@/lib/seo.js";
 
 export const revalidate = 300;
 
+// Rendered on first visit, then served from the ISR cache (tag `notices-public`).
+export async function generateStaticParams() {
+    return [];
+}
+
 export async function generateMetadata({ params }) {
-    const n = await getPublicNotice((await params).slug);
+    const [n, site] = await Promise.all([getPublicNotice((await params).slug), getPublicSite()]);
     if (!n) return { title: "Notice not found", robots: { index: false } };
     return {
         title: n.title,
         description: n.excerpt,
+        keywords: mergeKeywords(site.seo?.keywords ?? []),
         alternates: { canonical: `/notices/${n.slug}` },
-        openGraph: { type: "article", publishedTime: n.publishAt },
+        openGraph: {
+            ...baseOpenGraph(site),
+            type: "article",
+            title: n.title,
+            description: n.excerpt,
+            url: `/notices/${n.slug}`,
+            publishedTime: n.publishAt,
+            modifiedTime: n.updatedAt,
+        },
+        twitter: {
+            card: "summary_large_image",
+            title: n.title,
+            description: n.excerpt,
+            images: ["/opengraph-image"],
+        },
     };
 }
 
@@ -25,6 +46,13 @@ export default async function NoticePage({ params }) {
     return (
         <article className="mx-auto max-w-3xl px-4 pt-12 pb-24 sm:px-6 sm:pt-16">
             <JsonLd
+                data={breadcrumbJsonLd(baseUrl(), [
+                    ["Home", "/"],
+                    ["Notices", "/notices"],
+                    [n.title, `/notices/${n.slug}`],
+                ])}
+            />
+            <JsonLd
                 data={{
                     "@context": "https://schema.org",
                     "@type": "Article",
@@ -33,6 +61,9 @@ export default async function NoticePage({ params }) {
                     dateModified: n.updatedAt,
                     url: `${baseUrl()}/notices/${n.slug}`,
                     author: { "@id": `${baseUrl()}/#person` },
+                    publisher: { "@id": `${baseUrl()}/#person` },
+                    image: `${baseUrl()}/opengraph-image`,
+                    mainEntityOfPage: `${baseUrl()}/notices/${n.slug}`,
                 }}
             />
             <Link

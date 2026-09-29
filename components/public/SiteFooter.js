@@ -12,7 +12,7 @@ export async function SiteFooter() {
         <footer className="bg-ink text-paper/80">
             <div className="mx-auto grid max-w-7xl gap-12 px-4 py-16 sm:px-6 md:grid-cols-2 lg:grid-cols-[1.3fr_1fr_1fr_1fr] lg:px-8">
                 <div>
-                    <Logo tone="paper" />
+                    <Logo tone="ink" priority={false} />
                     <p className="mt-5 max-w-xs text-sm leading-relaxed text-paper/60">
                         {s.jobTitle}. {s.boards}.
                     </p>

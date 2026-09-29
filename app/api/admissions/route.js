@@ -1,7 +1,7 @@
 import { isSameOrigin, json } from "@/server/http.js";
 import { getClientIp, hashIp, hit, isLimited } from "@/server/rate-limit.js";
 import { readLimitedFormData } from "@/server/storage/files.js";
-import { checkFormToken } from "@/server/form-token.js";
+import { checkFormToken, issueFormToken } from "@/server/form-token.js";
 import { pickForm } from "@/server/action-utils.js";
 import { ADMISSION_FIELDS, admissionSchema } from "@/server/validators/admissions.js";
 import { submitAdmission } from "@/server/services/admissions.js";
@@ -48,6 +48,16 @@ export async function POST(request) {
     if (token === "too_fast") {
         return json(
             { error: "Please take a moment to check your details, then submit again." },
+            400,
+        );
+    }
+    if (token === "expired") {
+        // Page left open for hours: hand back a fresh token so nothing typed is lost.
+        return json(
+            {
+                error: "This page was open for a long time. Please check your details and press Submit again.",
+                formToken: issueFormToken("admission"),
+            },
             400,
         );
     }

@@ -15,6 +15,7 @@ import {
     PanelsTopLeft,
     Images,
     MessageSquareQuote,
+    SearchCheck,
     ChevronsUpDown,
     ClipboardCheck,
     ClipboardList,
@@ -47,6 +48,7 @@ const ICONS = {
     PanelsTopLeft,
     Images,
     MessageSquareQuote,
+    SearchCheck,
     // student portal
     Home,
     FileQuestion,

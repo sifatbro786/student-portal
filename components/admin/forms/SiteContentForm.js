@@ -402,6 +402,82 @@ export function SiteContentForm({ action, initial }) {
                 })}
             </Section>
 
+            <Section
+                id="admission"
+                title="Admission page"
+                description="Text on /admission. The form fields themselves are fixed."
+            >
+                <label className="flex cursor-pointer items-start gap-3 rounded-md border border-line bg-paper/50 p-3">
+                    <input
+                        type="checkbox"
+                        checked={c.admission.isOpen}
+                        onChange={(e) => upIn("admission", { isOpen: e.target.checked })}
+                        className="mt-0.5 size-4.5 shrink-0 cursor-pointer accent-burgundy"
+                    />
+                    <span className="text-sm leading-snug">
+                        <span className="font-semibold">Accept online applications</span>
+                        <span className="mt-0.5 block text-xs text-muted">
+                            Untick to close admissions — the page then shows the note below with the
+                            office phone and WhatsApp.
+                        </span>
+                    </span>
+                </label>
+                <div className="grid gap-5 sm:grid-cols-2">
+                    {text("admission", "headline", "Headline")}
+                    {text("admission", "accent", "Italic phrase")}
+                </div>
+                {text("admission", "intro", "Short intro", { textarea: true })}
+                {text("admission", "closedNote", "Message when admissions are closed", {
+                    textarea: true,
+                    rows: 2,
+                })}
+                <div>
+                    <h3 className="mb-2 text-sm font-semibold">How admission works (steps)</h3>
+                    <ListEditor
+                        name="admission.steps"
+                        items={c.admission.steps}
+                        onChange={(steps) => upIn("admission", { steps })}
+                        fields={[
+                            { key: "title", label: "Step", wide: true },
+                            { key: "body", label: "Text", textarea: true },
+                        ]}
+                        blank={{ title: "", body: "" }}
+                        max={6}
+                        addLabel="Add a step"
+                        errors={fe}
+                    />
+                </div>
+                <div>
+                    <h3 className="mb-2 text-sm font-semibold">“Keep these ready” list</h3>
+                    <ListEditor
+                        name="admission.checklist"
+                        items={c.admission.checklist}
+                        onChange={(checklist) => upIn("admission", { checklist })}
+                        fields={[{ key: "text", label: "Item", wide: true }]}
+                        blank={{ text: "" }}
+                        max={10}
+                        addLabel="Add an item"
+                        errors={fe}
+                    />
+                </div>
+                <div>
+                    <h3 className="mb-2 text-sm font-semibold">Frequently asked questions</h3>
+                    <ListEditor
+                        name="admission.faqs"
+                        items={c.admission.faqs}
+                        onChange={(faqs) => upIn("admission", { faqs })}
+                        fields={[
+                            { key: "question", label: "Question", wide: true },
+                            { key: "answer", label: "Answer", textarea: true },
+                        ]}
+                        blank={{ question: "", answer: "" }}
+                        max={12}
+                        addLabel="Add a question"
+                        errors={fe}
+                    />
+                </div>
+            </Section>
+
             <div className="sticky bottom-0 z-10 -mx-4 flex items-center justify-end gap-3 border-t border-line bg-paper/95 px-4 py-3 sm:mx-0 sm:rounded-lg sm:border">
                 {state?.error && (
                     <span className="mr-auto text-sm font-medium text-danger">{state.error}</span>

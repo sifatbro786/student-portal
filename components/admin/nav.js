@@ -48,6 +48,7 @@ export const ADMIN_NAV = [
                 icon: "MessageSquareQuote",
                 badge: "pendingReviews",
             },
+            { href: "/admin/seo", label: "SEO", icon: "SearchCheck" },
         ],
     },
     {

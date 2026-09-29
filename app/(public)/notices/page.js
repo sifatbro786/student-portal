@@ -1,20 +1,31 @@
-import { getPublicNotices } from "@/server/services/site-public.js";
+import { getPublicNotices, getPublicSite } from "@/server/services/site-public.js";
 import { NoticeCard } from "@/components/public/home/NoticeBoard.js";
 import { PageIntro } from "@/components/public/PageIntro.js";
+import { pageMetadata } from "@/lib/seo.js";
+import { baseUrl } from "@/lib/site-url.js";
+import { JsonLd, breadcrumbJsonLd } from "@/components/public/JsonLd.js";
 
 export const revalidate = 300;
 
-export const metadata = {
-    title: "Notices",
-    description:
-        "Public notices from Tauhid Mostafa's O'Level English classes — holidays, mock test schedules and admission updates.",
-    alternates: { canonical: "/notices" },
-};
+export async function generateMetadata() {
+    const s = await getPublicSite();
+    return pageMetadata(s, "notices", {
+        title: "Notices",
+        description: `Public notices from ${s.name}'s O'Level English classes — holidays, mock test schedules and admission updates.`,
+        path: "/notices",
+    });
+}
 
 export default async function NoticesPage() {
     const notices = await getPublicNotices(50);
     return (
         <>
+            <JsonLd
+                data={breadcrumbJsonLd(baseUrl(), [
+                    ["Home", "/"],
+                    ["Notices", "/notices"],
+                ])}
+            />
             <PageIntro eyebrow="Notice board" title="Public" accent="notices">
                 Holidays, mock test dates and admission news. Enrolled students see their batch’s
                 notices in the student portal.

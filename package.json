@@ -15,6 +15,7 @@
         "seed:honor": "node --conditions=react-server --env-file=.env scripts/seed-honor.js",
         "seed:honor-photos": "node --conditions=react-server --env-file=.env scripts/seed-honor-photos.js",
         "seed:site": "node --conditions=react-server --env-file=.env scripts/seed-site.js",
+        "seed:seo": "node --conditions=react-server --env-file=.env scripts/seed-seo.js",
         "seed:gallery": "node --conditions=react-server --env-file=.env scripts/seed-gallery.js",
         "fees:generate": "node --conditions=react-server --env-file=.env scripts/fees-generate.js"
     },

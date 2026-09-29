@@ -49,3 +49,8 @@
 - Gallery: `saveImageSet()` stores 1600 + 800 WebP with real width/height (no CLS). Publishing requires `consentConfirmed`.
 - `buttonClass({ className })` can't override `display`/`bg` of a variant (Tailwind order) — wrap in an element or add a variant (`paper`, `outlineLight`).
 - Public design: paper/burgundy/ink bands, serif headings with ONE italic accent, gold rule, Caveat (`font-hand`) for at most one handwritten note per section, `reveal` utility (CSS scroll-driven, no JS). No glass, gradient text, count-ups or carousels.
+- SEO (between P8 and P9): Admin → Website → SEO (`/admin/seo`) edits `SiteContent.seo` (site keywords, Google/Bing verification, title/description/keywords per public page). Public pages build their `<head>` ONLY with `pageMetadata(site, key, fallback)` from `lib/seo.js` (it also re-adds the OG image — a segment that sets `openGraph` otherwise drops `app/opengraph-image`). Recommended values: `npm run seed:seo` (`-- --force` overwrites). Until saved, the defaults in `lib/site-defaults.js` are used.
+- `/admission` copy (headline, steps, checklist, FAQ, open/closed switch) lives in `SiteContent.admission` (Admin → Site content → Admission page). FAQ is also emitted as FAQPage JSON-LD.
+- `getPublicSite()` is cached under a versioned key (`["site-content", "v2"]`). Bump the version whenever the shape from `shapeSiteContent()` changes, or pages read an old cached object after deploy.
+- Icons: `app/favicon.ico`, `app/icon.png`, `app/apple-icon.png`, `public/brand/icon-*.png` + `app/manifest.js`, all generated from `public/brand/tm-mark.png` (red mark on paper). Regenerate them when the client sends the SVG logo.
+- Only the header `<Logo>` is `priority`; the footer uses `tone="ink"` (red mark on dark) with `priority={false}`.

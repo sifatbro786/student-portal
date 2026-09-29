@@ -102,6 +102,67 @@ export const siteContentSchema = z.strictObject({
     contact: z.strictObject({ phone: bdPhone, whatsapp: bdPhone, email }),
     socials: z.array(social).max(6),
     classInfo: opt(1200),
+    admission: z.strictObject({
+        isOpen: z.boolean(),
+        headline: line(100),
+        accent: opt(60),
+        intro: opt(400),
+        closedNote: opt(300),
+        steps: z
+            .array(z.strictObject({ title: line(80), body: opt(240) }))
+            .min(1, "Add at least one step.")
+            .max(6, "At most 6 steps."),
+        checklist: z.array(z.strictObject({ text: line(120) })).max(10, "At most 10 items."),
+        faqs: z
+            .array(z.strictObject({ question: line(160), answer: line(800) }))
+            .max(12, "At most 12 questions."),
+    }),
+});
+
+// ------------------------------------------------------------------ SEO (admin → SEO)
+const keywordList = (max) =>
+    z
+        .array(
+            z
+                .string()
+                .trim()
+                .min(2, "Too short.")
+                .max(60, "Max 60 characters per keyword.")
+                .regex(/^[^\p{Cc}<>"]*$/u, "Contains invalid characters."),
+        )
+        .max(max, `At most ${max} keywords.`)
+        .transform((list) => [...new Map(list.map((k) => [k.toLowerCase(), k])).values()]);
+
+const pageSeo = z.strictObject({
+    title: opt(70),
+    description: opt(170),
+    keywords: keywordList(15),
+});
+
+/** Accepts the bare token or the whole `<meta … content="TOKEN">` tag Google/Bing show. */
+const verification = z.preprocess(
+    (v) => {
+        if (typeof v !== "string") return v;
+        const m = v.match(/content\s*=\s*["']([^"']*)["']/i);
+        return (m ? m[1] : v).trim();
+    },
+    z
+        .string()
+        .max(100, "Too long.")
+        .regex(/^[A-Za-z0-9_-]*$/, "Paste only the code (letters, numbers, - and _)."),
+);
+
+export const siteSeoSchema = z.strictObject({
+    keywords: keywordList(20),
+    googleVerification: verification,
+    bingVerification: verification,
+    pages: z.strictObject({
+        home: pageSeo,
+        honorBoard: pageSeo,
+        gallery: pageSeo,
+        notices: pageSeo,
+        admission: pageSeo,
+    }),
 });
 
 // ------------------------------------------------------------------ testimonials

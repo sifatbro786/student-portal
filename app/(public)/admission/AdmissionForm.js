@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Camera } from "lucide-react";
+import Link from "next/link";
+import { Camera, Check as CheckIcon } from "lucide-react";
 import { Field, FieldError } from "@/components/ui/Field.js";
 import { Select } from "@/components/ui/Select.js";
 import { Textarea } from "@/components/ui/Textarea.js";
@@ -9,16 +10,77 @@ import { Check } from "@/components/ui/Checkbox.js";
 import { Alert } from "@/components/ui/Alert.js";
 import { buttonClass } from "@/components/ui/Button.js";
 import { scheduleLabel } from "@/lib/format.js";
+import { cx } from "@/components/ui/cx.js";
 
 const MAX_PHOTO = 3 * 1024 * 1024;
 const PHOTO_TYPES = ["image/jpeg", "image/png", "image/webp"];
 
+const STEPS = ["Student", "Contact", "Parents", "Test score"];
+
+/** Is every required control inside this fieldset filled in? (radios: one checked per name) */
+function sectionDone(fs) {
+    const controls = [...fs.querySelectorAll("input, select, textarea")];
+    const radios = new Set(controls.filter((c) => c.type === "radio").map((c) => c.name));
+    for (const name of radios) {
+        if (!controls.some((c) => c.name === name && c.checked)) return false;
+    }
+    return controls
+        .filter((c) => c.required && c.type !== "radio")
+        .every((c) => (c.type === "file" ? c.files?.length > 0 : c.value.trim() !== ""));
+}
+
+function Progress({ done }) {
+    const count = done.filter(Boolean).length;
+    return (
+        <div className="sticky top-18 z-10 -mx-5 border-b border-line bg-surface/95 px-5 py-3 sm:-mx-8 sm:px-8 lg:-mx-10 lg:px-10">
+            <p className="sr-only" aria-live="polite">
+                {count} of {STEPS.length} sections complete
+            </p>
+            <ol aria-hidden="true" className="flex items-center gap-2 sm:gap-3">
+                {STEPS.map((label, i) => (
+                    <li key={label} className="flex min-w-0 flex-1 items-center gap-2">
+                        <span
+                            className={cx(
+                                "grid size-6 shrink-0 place-items-center rounded-full border text-[0.7rem] font-bold transition-colors duration-300",
+                                done[i]
+                                    ? "border-burgundy bg-burgundy text-paper"
+                                    : "border-line-strong bg-paper text-muted",
+                            )}
+                        >
+                            {done[i] ? <CheckIcon className="size-3.5" strokeWidth={3} /> : i + 1}
+                        </span>
+                        <span
+                            className={cx(
+                                "hidden truncate text-xs font-semibold sm:block",
+                                done[i] ? "text-ink" : "text-muted",
+                            )}
+                        >
+                            {label}
+                        </span>
+                        {i < STEPS.length - 1 && (
+                            <span
+                                className={cx(
+                                    "h-px flex-1 transition-colors duration-300",
+                                    done[i] ? "bg-burgundy" : "bg-line-strong",
+                                )}
+                            />
+                        )}
+                    </li>
+                ))}
+            </ol>
+        </div>
+    );
+}
+
 function Section({ n, title, hint, children }) {
     return (
-        <fieldset className="grid gap-6 border-t border-line pt-8 md:grid-cols-[11rem_minmax(0,1fr)]">
+        <fieldset
+            data-step
+            className="grid gap-6 border-t border-line pt-8 first-of-type:border-t-0 first-of-type:pt-0 md:grid-cols-[10rem_minmax(0,1fr)]"
+        >
             <legend className="contents">
                 <span className="block">
-                    <span className="font-serif text-3xl text-gold">{n}</span>
+                    <span className="font-serif text-3xl text-gold-deep">{n}</span>
                     <span className="mt-1 block font-serif text-xl font-medium">{title}</span>
                     {hint && (
                         <span className="mt-1 block text-sm leading-relaxed text-muted">
@@ -35,6 +97,9 @@ function Section({ n, title, hint, children }) {
 /** FR-ADM-01..07 — posts multipart to /api/admissions (photo upload). */
 export function AdmissionForm({ options, formToken }) {
     const [state, setState] = useState({ status: "idle" });
+    const [token, setToken] = useState(formToken);
+    const [done, setDone] = useState(() => STEPS.map(() => false));
+    const formRef = useRef(null);
     const [classId, setClassId] = useState("");
     const [instType, setInstType] = useState("");
     const [preview, setPreview] = useState(null);
@@ -49,6 +114,14 @@ export function AdmissionForm({ options, formToken }) {
         if (state.status === "error") alertRef.current?.focus();
         if (state.status === "done") doneRef.current?.focus();
     }, [state.status]);
+
+    function updateProgress() {
+        const sets = formRef.current?.querySelectorAll("fieldset[data-step]") ?? [];
+        const next = [...sets].map(sectionDone);
+        setDone((prev) => (prev.every((v, i) => v === next[i]) ? prev : next));
+    }
+    // School name appears/disappears with the radio choice — recount after render.
+    useEffect(updateProgress, [instType]);
 
     function onPhoto(e) {
         const f = e.target.files?.[0];
@@ -70,12 +143,14 @@ export function AdmissionForm({ options, formToken }) {
             });
             const body = await res.json().catch(() => ({}));
             if (res.ok && body.refNo) setState({ status: "done", refNo: body.refNo });
-            else
+            else {
+                if (body.formToken) setToken(body.formToken); // long-open page: resubmit works
                 setState({
                     status: "error",
                     error: body.error,
                     fieldErrors: body.fieldErrors ?? {},
                 });
+            }
         } catch {
             setState({
                 status: "error",
@@ -107,19 +182,38 @@ export function AdmissionForm({ options, formToken }) {
                     We’ve emailed you a copy. The office will review your application and contact
                     you on WhatsApp to confirm your batch.
                 </p>
+                <Link href="/" className={buttonClass({ variant: "secondary", className: "mt-8" })}>
+                    Back to the homepage
+                </Link>
             </div>
         );
     }
 
     const busy = state.status === "submitting";
     return (
-        <form onSubmit={onSubmit} noValidate className="space-y-10" aria-describedby="adm-intro">
+        <form
+            ref={formRef}
+            onSubmit={onSubmit}
+            onInput={updateProgress}
+            onChange={updateProgress}
+            noValidate
+            className="space-y-10"
+            aria-labelledby="adm-form-title"
+            aria-describedby="adm-intro"
+        >
             <header>
-                <h2 className="text-3xl font-medium tracking-tight sm:text-4xl">Admission form</h2>
+                <p className="eyebrow text-gold-deep">Online application</p>
+                <h2
+                    id="adm-form-title"
+                    className="mt-2 text-3xl font-medium tracking-tight sm:text-4xl"
+                >
+                    Admission form
+                </h2>
                 <p id="adm-intro" className="mt-2 text-muted">
                     All fields are required unless marked optional. It takes about five minutes.
                 </p>
             </header>
+            <Progress done={done} />
 
             {state.status === "error" && (
                 <div ref={alertRef} tabIndex={-1} className="outline-none">
@@ -129,7 +223,7 @@ export function AdmissionForm({ options, formToken }) {
                 </div>
             )}
 
-            <input type="hidden" name="formToken" value={formToken} />
+            <input type="hidden" name="formToken" value={token} />
             {/* Honeypot — hidden from people and screen readers */}
             <div aria-hidden="true" className="absolute -left-[9999px] h-px w-px overflow-hidden">
                 <label>
@@ -272,6 +366,7 @@ export function AdmissionForm({ options, formToken }) {
                     label="Email"
                     type="email"
                     autoComplete="email"
+                    hint="Your reference number is sent here."
                     error={fe.email}
                     required
                 />
@@ -321,7 +416,7 @@ export function AdmissionForm({ options, formToken }) {
                 />
             </Section>
 
-            <div className="space-y-6 border-t border-line pt-8">
+            <div className="space-y-6 border-t border-line pt-8 md:pl-[calc(10rem+1.5rem)]">
                 <div>
                     <Check name="consent" label="I confirm the information above is correct." />
                     <FieldError id="f-consent-error" message={fe.consent} />

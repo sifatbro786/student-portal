@@ -31,7 +31,9 @@ const safe =
 
 export const getPublicSite = safe(
     "site",
-    unstable_cache(() => getSiteContent(), ["site-content"], {
+    // Bump the key suffix whenever the SHAPE changes (v2: admission + seo), so an entry
+    // cached by the previous deploy is never served to code expecting the new fields.
+    unstable_cache(() => getSiteContent(), ["site-content", "v2"], {
         tags: [SITE_TAG],
         revalidate: 3600,
     }),

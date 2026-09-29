@@ -74,7 +74,9 @@ export function Hero({ site }) {
                             width={h.photoWidth}
                             height={h.photoHeight}
                             priority
-                            unoptimized={h.hasPhoto}
+                            // Uploaded portrait = one 1400px WebP; let the optimizer resize it for phones
+                            // (it reads /media through app/media, so this works behind Nginx too).
+                            unoptimized={!h.photoUrl.startsWith("/")}
                             sizes="(min-width: 1024px) 28rem, (min-width: 640px) 28rem, 90vw"
                             className="aspect-4/5 w-full object-cover"
                         />

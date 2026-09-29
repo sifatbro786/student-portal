@@ -1,5 +1,32 @@
 import { SiteHeader } from "@/components/public/SiteHeader.js";
 import { SiteFooter } from "@/components/public/SiteFooter.js";
+import { getPublicSite } from "@/server/services/site-public.js";
+import { baseOpenGraph } from "@/lib/seo.js";
+
+/** Site-wide defaults from Admin → SEO; pages add their own title/description/keywords. */
+export async function generateMetadata() {
+    const s = await getPublicSite();
+    const google = s.seo?.googleVerification;
+    const bing = s.seo?.bingVerification;
+    return {
+        keywords: s.seo?.keywords ?? [],
+        openGraph: baseOpenGraph(s),
+        robots: {
+            index: true,
+            follow: true,
+            googleBot: {
+                index: true,
+                follow: true,
+                "max-image-preview": "large",
+                "max-snippet": -1,
+            },
+        },
+        verification: {
+            ...(google && { google }),
+            ...(bing && { other: { "msvalidate.01": bing } }),
+        },
+    };
+}
 
 // Public website: homepage, honor board, gallery, notices, admission.
 export default function PublicLayout({ children }) {

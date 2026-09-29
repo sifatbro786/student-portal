@@ -6,6 +6,12 @@ import { Schema, baseOptions, model, FileRefSchema } from "./_shared.js";
 // [P8] `contact.venue` + `mapEmbedUrl` became `campuses[]`: the client has two campuses.
 const str = (max) => ({ type: String, trim: true, maxlength: max });
 
+// Per-page search snippet. Empty title/description = the page's built-in default.
+const PageSeoSchema = new Schema(
+    { title: str(70), description: str(170), keywords: [str(60)] },
+    { _id: false },
+);
+
 const SiteContentSchema = new Schema(
     {
         _id: { type: String, default: "singleton" },
@@ -48,6 +54,30 @@ const SiteContentSchema = new Schema(
         contact: { phone: str(20), whatsapp: str(20), email: str(254) },
         socials: [{ _id: false, platform: str(20), url: str(300) }],
         classInfo: str(1200),
+        // /admission copy (the form fields themselves are fixed by FR-ADM-02).
+        admission: {
+            isOpen: { type: Boolean, default: true },
+            headline: str(100),
+            accent: str(60),
+            intro: str(400),
+            closedNote: str(300),
+            steps: [{ _id: false, title: str(80), body: str(240) }],
+            checklist: [{ _id: false, text: str(120) }],
+            faqs: [{ _id: false, question: str(160), answer: str(800) }],
+        },
+        // Search engines (admin → SEO). Absent until first saved / `npm run seed:seo`.
+        seo: {
+            keywords: [str(60)],
+            googleVerification: str(100),
+            bingVerification: str(100),
+            pages: {
+                home: PageSeoSchema,
+                honorBoard: PageSeoSchema,
+                gallery: PageSeoSchema,
+                notices: PageSeoSchema,
+                admission: PageSeoSchema,
+            },
+        },
     },
     baseOptions,
 );

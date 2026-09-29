@@ -54,6 +54,33 @@ export function siteJsonLd(site, baseUrl) {
     ];
 }
 
+/** WebSite entity (site name in results). */
+export function websiteJsonLd(site, baseUrl) {
+    return {
+        "@context": "https://schema.org",
+        "@type": "WebSite",
+        "@id": `${baseUrl}/#website`,
+        name: `${site.name} — O'Level English`,
+        url: baseUrl,
+        inLanguage: "en",
+        publisher: { "@id": `${baseUrl}/#person` },
+    };
+}
+
+/** @param {[string, string][]} items [name, path] from Home down to the current page */
+export function breadcrumbJsonLd(baseUrl, items) {
+    return {
+        "@context": "https://schema.org",
+        "@type": "BreadcrumbList",
+        itemListElement: items.map(([name, path], i) => ({
+            "@type": "ListItem",
+            position: i + 1,
+            name,
+            item: `${baseUrl}${path === "/" ? "" : path}`,
+        })),
+    };
+}
+
 /** Honor Board as an ItemList of people with their grade (no photos needed). */
 export function honorJsonLd(board, baseUrl) {
     return {

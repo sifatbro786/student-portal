@@ -22,6 +22,7 @@ const JUMP = [
     ["experience", "Experience"],
     ["campuses", "Campuses"],
     ["contact", "Contact"],
+    ["admission", "Admission page"],
 ];
 
 export default async function SiteContentPage({ searchParams }) {
@@ -66,6 +67,16 @@ export default async function SiteContentPage({ searchParams }) {
         },
         socials: s.socials.map(({ platform = "facebook", url = "" }) => ({ platform, url })),
         classInfo: s.classInfo,
+        admission: {
+            isOpen: s.admission.isOpen,
+            headline: s.admission.headline,
+            accent: s.admission.accent,
+            intro: s.admission.intro,
+            closedNote: s.admission.closedNote,
+            steps: s.admission.steps.map(({ title = "", body = "" }) => ({ title, body })),
+            checklist: s.admission.checklist.map(({ text = "" }) => ({ text })),
+            faqs: s.admission.faqs.map(({ question = "", answer = "" }) => ({ question, answer })),
+        },
     };
 
     return (

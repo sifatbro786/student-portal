@@ -3,10 +3,11 @@ import { getPublicHonor, getPublicSite } from "@/server/services/site-public.js"
 import { HonorCard } from "@/components/public/HonorCard.js";
 import { Ribbon } from "@/components/public/home/HonorShowcase.js";
 import { PageIntro } from "@/components/public/PageIntro.js";
-import { JsonLd, honorJsonLd } from "@/components/public/JsonLd.js";
+import { JsonLd, breadcrumbJsonLd, honorJsonLd } from "@/components/public/JsonLd.js";
 import { cx } from "@/components/ui/cx.js";
 import { baseUrl } from "@/lib/site-url.js";
 import { GRADES } from "@/lib/constants.js";
+import { pageMetadata } from "@/lib/seo.js";
 
 const yearOf = (v) => {
     const y = Number(v);
@@ -14,21 +15,22 @@ const yearOf = (v) => {
 };
 
 export async function generateMetadata({ searchParams }) {
-    const board = await getPublicHonor(yearOf((await searchParams).year));
+    const [board, site] = await Promise.all([
+        getPublicHonor(yearOf((await searchParams).year)),
+        getPublicSite(),
+    ]);
     const y = board.year ?? "";
-    return {
+    const latest = !board.year || board.year === board.years[0];
+    // Admin SEO text describes the main board (latest year); older years keep their own title.
+    return pageMetadata(site, "honorBoard", {
         title: `Honor Board ${y}`.trim(),
         description: board.year
-            ? `${board.heading} ${board.year}: ${board.entries.length} O Level English Language achievers taught by Tauhid Mostafa — grades and percentage marks.`
-            : "O Level English Language achievers taught by Tauhid Mostafa.",
+            ? `${board.heading} ${board.year}: ${board.entries.length} O Level English Language achievers taught by ${site.name} — grades and percentage marks.`
+            : `O Level English Language achievers taught by ${site.name}.`,
         // One canonical page per year; the latest year is the bare URL.
-        alternates: {
-            canonical:
-                board.year && board.year !== board.years[0]
-                    ? `/honor-board?year=${board.year}`
-                    : "/honor-board",
-        },
-    };
+        path: latest ? "/honor-board" : `/honor-board?year=${board.year}`,
+        useSeo: latest,
+    });
 }
 
 export default async function HonorBoardPage({ searchParams }) {
@@ -51,7 +53,15 @@ export default async function HonorBoardPage({ searchParams }) {
         .map(([g, n]) => `${n} × ${g}`);
     return (
         <>
-            <JsonLd data={honorJsonLd(board, baseUrl())} />
+            <JsonLd
+                data={[
+                    breadcrumbJsonLd(baseUrl(), [
+                        ["Home", "/"],
+                        ["Honor Board", "/honor-board"],
+                    ]),
+                    honorJsonLd(board, baseUrl()),
+                ]}
+            />
             <PageIntro eyebrow={`O-Level English Language · ${board.year}`} title={board.heading}>
                 <Ribbon className="mb-6">{board.subheading}</Ribbon>
                 <p>

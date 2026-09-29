@@ -4,22 +4,31 @@ import { GALLERY_CATEGORY_LABELS } from "@/server/validators/site.js";
 import { GalleryBrowser } from "@/components/public/GalleryBrowser.js";
 import { PageIntro } from "@/components/public/PageIntro.js";
 import { buttonClass } from "@/components/ui/Button.js";
+import { pageMetadata } from "@/lib/seo.js";
+import { baseUrl } from "@/lib/site-url.js";
+import { JsonLd, breadcrumbJsonLd } from "@/components/public/JsonLd.js";
 
 export const revalidate = 300;
 
 export async function generateMetadata() {
     const s = await getPublicSite();
-    return {
+    return pageMetadata(s, "gallery", {
         title: "Gallery",
         description: `Photos from ${s.name}'s O'Level English classes in ${s.campuses.map((c) => c.name).join(" & ")}, Dhaka — classrooms, students and results days.`,
-        alternates: { canonical: "/gallery" },
-    };
+        path: "/gallery",
+    });
 }
 
 export default async function GalleryPage() {
     const photos = await getPublicGallery();
     return (
         <>
+            <JsonLd
+                data={breadcrumbJsonLd(baseUrl(), [
+                    ["Home", "/"],
+                    ["Gallery", "/gallery"],
+                ])}
+            />
             <PageIntro
                 eyebrow="Gallery"
                 title="Inside the"

@@ -1,5 +1,5 @@
 import "server-only";
-import { connectDB } from "../db.js";
+import { connectDB, trusted } from "../db.js";
 import { SiteContent } from "../models/SiteContent.js";
 import { writeAudit } from "../audit.js";
 import { sanitizeRichText } from "../sanitize.js";
@@ -65,7 +65,60 @@ export function shapeSiteContent(doc) {
         contact: { ...d.contact, ...stripEmpty(s.contact) }, // phone/email are required on save
         socials: plain(doc ? s.socials : d.socials),
         classInfo: doc ? (s.classInfo ?? "") : d.classInfo,
+        admission: shapeAdmission(s.admission),
+        seo: shapeSeo(s.seo),
         updatedAt: doc?.updatedAt ? doc.updatedAt.toISOString() : null,
+    };
+}
+
+/** Admission copy: stored values, or the defaults until it is first saved. */
+function shapeAdmission(a) {
+    const d = SITE_DEFAULTS.admission;
+    if (!a?.headline)
+        return {
+            ...d,
+            saved: false,
+            steps: plain(d.steps),
+            checklist: plain(d.checklist),
+            faqs: plain(d.faqs),
+        };
+    return {
+        saved: true,
+        isOpen: a.isOpen !== false,
+        headline: a.headline,
+        accent: a.accent ?? "",
+        intro: a.intro ?? "",
+        closedNote: a.closedNote || d.closedNote,
+        steps: plain(a.steps),
+        checklist: plain(a.checklist),
+        faqs: plain(a.faqs),
+    };
+}
+
+export const SEO_PAGES = /** @type {const} */ ([
+    "home",
+    "honorBoard",
+    "gallery",
+    "notices",
+    "admission",
+]);
+
+/** SEO settings: stored values, or the seed defaults until the SEO page is first saved. */
+function shapeSeo(seo) {
+    const d = SITE_DEFAULTS.seo;
+    const saved = !!seo?.pages;
+    const src = saved ? seo : d;
+    const page = (p) => ({
+        title: p?.title ?? "",
+        description: p?.description ?? "",
+        keywords: [...(p?.keywords ?? [])],
+    });
+    return {
+        saved,
+        keywords: [...(src.keywords ?? [])],
+        googleVerification: src.googleVerification ?? "",
+        bingVerification: src.bingVerification ?? "",
+        pages: Object.fromEntries(SEO_PAGES.map((k) => [k, page(src.pages?.[k])])),
     };
 }
 
@@ -103,11 +156,40 @@ export async function saveSiteContent(input, actor) {
                 contact: input.contact,
                 socials: input.socials,
                 classInfo: input.classInfo,
+                admission: input.admission,
             },
         },
         { upsert: true, runValidators: true },
     );
     await audit(actor, "site.update");
+}
+
+/** Admin → SEO. Only touches `seo`, so it can never clobber the page text. */
+export async function saveSiteSeo(input, actor) {
+    await connectDB();
+    await SiteContent.updateOne(
+        { _id: ID },
+        { $set: { seo: input } },
+        { upsert: true, runValidators: true },
+    );
+    await audit(actor, "site.seo_update");
+}
+
+/**
+ * Production-safe: writes the recommended SEO defaults only when SEO was never saved
+ * (`force` overwrites). Creates the singleton from the defaults if it doesn't exist.
+ * @returns {Promise<"created" | "updated" | "skipped">}
+ */
+export async function seedSiteSeo({ force = false } = {}) {
+    await connectDB();
+    if (await seedSiteContent()) return "created";
+    const filter = force ? { _id: ID } : { _id: ID, "seo.pages": trusted({ $exists: false }) };
+    const res = await SiteContent.updateOne(
+        filter,
+        { $set: { seo: SITE_DEFAULTS.seo } },
+        { runValidators: true },
+    );
+    return (force ? res.matchedCount : res.modifiedCount) ? "updated" : "skipped";
 }
 
 /** Hero portrait: one ≤ 1400px WebP in the public folder. Old file removed after the DB points at the new one. */

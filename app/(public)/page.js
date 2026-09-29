@@ -12,8 +12,9 @@ import { Reviews } from "@/components/public/home/Reviews.js";
 import { GalleryPreview } from "@/components/public/home/GalleryPreview.js";
 import { NoticeBoard } from "@/components/public/home/NoticeBoard.js";
 import { Classes, FinalCta } from "@/components/public/home/Classes.js";
-import { JsonLd, honorJsonLd, siteJsonLd } from "@/components/public/JsonLd.js";
+import { JsonLd, honorJsonLd, siteJsonLd, websiteJsonLd } from "@/components/public/JsonLd.js";
 import { baseUrl } from "@/lib/site-url.js";
+import { pageMetadata } from "@/lib/seo.js";
 
 // Static + ISR: every admin save revalidates its tag; 5 min is the safety net
 // (scheduled notices, writes from scripts).
@@ -21,15 +22,15 @@ export const revalidate = 300;
 
 export async function generateMetadata() {
     const s = await getPublicSite();
-    return {
+    return pageMetadata(s, "home", {
         title: { absolute: `${s.name} — O'Level English Language Teacher in Dhaka` },
         description:
             `${s.hero.tagline || s.jobTitle} Classes in ${s.campuses.map((c) => c.name).join(" & ")}, Dhaka. ${s.boards}.`.slice(
                 0,
                 300,
             ),
-        alternates: { canonical: "/" },
-    };
+        path: "/",
+    });
 }
 
 // Order (client priority + common tutor-site flow): hero → proof (results) → who →
@@ -45,7 +46,7 @@ export default async function HomePage() {
     const url = baseUrl();
     return (
         <>
-            <JsonLd data={siteJsonLd(site, url)} />
+            <JsonLd data={[websiteJsonLd(site, url), ...siteJsonLd(site, url)]} />
             {honor.year && <JsonLd data={honorJsonLd(honor, url)} />}
             <Hero site={site} />
             <FacultyRail names={site.faculties} />

@@ -84,7 +84,7 @@ export default async function HonorBoardAdminPage({ searchParams }) {
             </nav>
 
             <div className="grid items-start gap-8 xl:grid-cols-[minmax(0,1fr)_20rem]">
-                <div className="space-y-8">
+                <div className="min-w-0 space-y-8">
                     <section aria-labelledby="order-h">
                         <div className="mb-3 flex items-baseline justify-between gap-4">
                             <h2 id="order-h" className="text-xl font-medium">
