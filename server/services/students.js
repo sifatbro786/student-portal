@@ -12,6 +12,8 @@ import { FeeRecord } from "../models/FeeRecord.js";
 import { ensureCurrentFeeRecord } from "./payments.js";
 import { HonorEntry } from "../models/Honor.js";
 import { Admission } from "../models/Admission.js";
+import { Testimonial } from "../models/Testimonial.js";
+import { testimonialKeysForStudent } from "./testimonials.js";
 import { hashPassword } from "../auth/password.js";
 import { assertActiveBatchOfClass } from "./academics.js";
 import { ServiceError } from "../errors.js";
@@ -347,6 +349,7 @@ export async function purgeStudent(id, { confirmStudentId, honorAction }, actor)
     }
 
     const fileKeys = [studentFolderKey(s.studentId)]; // profile photo + all submissions live here
+    fileKeys.push(...(await testimonialKeysForStudent(s._id))); // public copy of the review photo
 
     await withTransaction(async (session) => {
         const opts = { session };
@@ -376,6 +379,7 @@ export async function purgeStudent(id, { confirmStudentId, honorAction }, actor)
         await ResultEntry.deleteMany({ student: s._id }, opts);
         await FeeRecord.deleteMany({ student: s._id }, opts);
         await BatchChangeLog.deleteMany({ student: s._id }, opts);
+        await Testimonial.deleteMany({ student: s._id }, opts);
         await Student.deleteOne({ _id: s._id }, opts);
         await User.deleteOne({ _id: s.user }, opts);
     });

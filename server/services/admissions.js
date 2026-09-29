@@ -15,7 +15,7 @@ import { escapeRegex } from "../validators/common.js";
 import { env } from "../env.js";
 import { dhakaYear } from "../../lib/date.js";
 import { formatPhone, localPhone } from "../../lib/format.js";
-import { SITE_DEFAULTS } from "../../lib/site-defaults.js";
+import { getSiteContent } from "./site-content.js";
 import { TZDate } from "@date-fns/tz";
 import { APP_TZ } from "../../lib/constants.js";
 
@@ -125,7 +125,7 @@ export async function submitAdmission(input, photo, meta) {
         data: {
             ...common,
             firstName: input.fullName.split(" ")[0],
-            phone: formatPhone(SITE_DEFAULTS.phone),
+            phone: formatPhone((await getSiteContent()).contact.phone),
         },
     });
 

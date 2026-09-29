@@ -26,6 +26,15 @@ const manrope = localFont({
     display: "swap",
 });
 
+// One handwritten accent (PRD §13 "optional handwritten-style accent"), public pages only.
+const caveat = localFont({
+    src: "../node_modules/@fontsource/caveat/files/caveat-latin-600-normal.woff2",
+    weight: "600",
+    variable: "--font-caveat",
+    display: "swap",
+    preload: false,
+});
+
 export const metadata = {
     metadataBase: new URL(process.env.APP_URL ?? "http://localhost:3000"),
     title: {
@@ -33,7 +42,15 @@ export const metadata = {
         template: "%s · Tauhid Mostafa — O'Level English",
     },
     description:
-        "O'Level English Language classes in Dhanmondi, Dhaka with Tauhid Mostafa — Cambridge & Edexcel, 17+ years of teaching.",
+        "O'Level English Language classes in Dhanmondi & Uttara, Dhaka with Tauhid Mostafa — Cambridge & Edexcel, 17+ years of teaching.",
+    applicationName: "Tauhid Mostafa — O'Level English",
+    openGraph: {
+        type: "website",
+        siteName: "Tauhid Mostafa — O'Level English",
+        locale: "en_BD",
+    },
+    twitter: { card: "summary_large_image" },
+    formatDetection: { telephone: false },
 };
 
 export const viewport = {
@@ -42,7 +59,10 @@ export const viewport = {
 
 export default function RootLayout({ children }) {
     return (
-        <html lang="en" className={`${fraunces.variable} ${manrope.variable} h-full antialiased`}>
+        <html
+            lang="en"
+            className={`${fraunces.variable} ${manrope.variable} ${caveat.variable} h-full antialiased`}
+        >
             {/* Extensions (ColorZilla, Grammarly…) inject attributes into <body> before hydration. */}
             <body className="flex min-h-full flex-col" suppressHydrationWarning>
                 {children}

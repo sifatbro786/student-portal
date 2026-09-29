@@ -40,6 +40,8 @@ import { stageFromBuffer } from "../server/storage/submissions.js";
 import { saveExam, saveResults, deleteExam } from "../server/services/results.js";
 import { generateFeeRecords, bulkSetFeeStatus } from "../server/services/payments.js";
 import { FeeRecord } from "../server/models/FeeRecord.js";
+import { Testimonial } from "../server/models/Testimonial.js";
+import { moderateTestimonial, saveOwnTestimonial } from "../server/services/testimonials.js";
 import { periodOf } from "../lib/date.js";
 import { SUBMISSION_FILE_TYPES } from "../lib/constants.js";
 
@@ -722,6 +724,70 @@ async function seed() {
         await bulkSetFeeStatus(current.slice(0, 4), { status: "paid" }, actor);
         log(`✓ Fee records for ${periods.join(", ")} (paid / due / waived mix)`);
     } else log("• Fee records already seeded — skipped");
+
+    // reviews (P8): three approved + one waiting for approval. DEMO text only — the
+    // real site shows real reviews written by students. Removed by --reset (purge).
+    if (!(await Testimonial.exists({ student: trusted({ $in: demoIds }) }))) {
+        const REVIEWS = [
+            [
+                "nusrat",
+                5,
+                "A* · Demo 2026",
+                true,
+                "Demo review. Sir breaks every Paper 2 question type into small steps, and the weekly mock tests with written feedback made the real exam feel familiar.",
+            ],
+            [
+                "farhan",
+                5,
+                "A · Demo 2026",
+                false,
+                "Demo review. My directed writing improved the most — every essay came back with clear comments on what to fix next, and the notes in the portal are easy to revise from.",
+            ],
+            [
+                "samiha",
+                4,
+                "",
+                true,
+                "Demo review. Classes are strict but friendly. The grammar drills felt boring at first, but they are exactly why I stopped losing marks in comprehension.",
+            ],
+            [
+                "sadia",
+                5,
+                "Class 9",
+                false,
+                "Demo review (waiting for approval). I like that notices, notes and homework are all in one place now.",
+            ],
+        ];
+        for (const [who, rating, resultLine, photo, quote] of REVIEWS) {
+            const s = await Student.findOne({ email: `${who}${DEMO_DOMAIN}` })
+                .select("studentId fullName")
+                .lean();
+            if (!s) continue;
+            const scope = { studentObjectId: s._id, studentId: s.studentId, fullName: s.fullName };
+            const file = photo ? await avatar(s.fullName, (rating * 57) % 360) : null;
+            await saveOwnTestimonial(
+                scope,
+                { quote, rating, resultLine, consent: true, removePhoto: false },
+                file,
+            );
+            if (who !== "sadia") {
+                const t = await Testimonial.findOne({ student: s._id }).lean();
+                await moderateTestimonial(
+                    {
+                        id: String(t._id),
+                        decision: "approve",
+                        version: t.submittedAt.toISOString(),
+                        name: t.name,
+                        resultLine: t.resultLine,
+                        quote: t.quote,
+                        isPinned: who === "nusrat",
+                    },
+                    actor,
+                );
+            }
+        }
+        log("✓ 4 demo reviews (3 approved, 1 pending)");
+    } else log("• Reviews already seeded — skipped");
 
     // Seeding queued account/admission emails to fake addresses — drop them.
     const dropped = await MailJob.deleteMany({

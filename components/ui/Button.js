@@ -9,6 +9,9 @@ const variants = {
     danger: "bg-danger text-paper hover:bg-burgundy-deep",
     secondary: "border border-line-strong bg-surface text-ink hover:border-ink",
     ghost: "text-burgundy hover:bg-burgundy-tint",
+    // on burgundy / ink bands (public site)
+    paper: "bg-paper text-burgundy hover:bg-surface",
+    outlineLight: "border border-paper/40 text-paper hover:border-paper hover:bg-paper/10",
     link: "text-burgundy underline decoration-gold decoration-1 underline-offset-4 hover:decoration-burgundy",
 };
 

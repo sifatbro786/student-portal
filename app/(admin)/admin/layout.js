@@ -1,5 +1,6 @@
 import { requireAuth } from "@/server/auth/guards.js";
 import { countPendingAdmissions } from "@/server/services/admissions.js";
+import { countPendingTestimonials } from "@/server/services/testimonials.js";
 import { Sidebar } from "@/components/admin/Sidebar.js";
 import { logoutAction, logoutAllAction } from "@/app/(auth)/actions.js";
 import { ROLE_LABELS } from "@/lib/constants.js";
@@ -11,7 +12,10 @@ export const metadata = {
 
 export default async function AdminLayout({ children }) {
     const user = await requireAuth(["super_admin", "admin"]);
-    const pendingAdmissions = await countPendingAdmissions();
+    const [pendingAdmissions, pendingReviews] = await Promise.all([
+        countPendingAdmissions(),
+        countPendingTestimonials(),
+    ]);
     return (
         <div className="flex min-h-dvh flex-1 flex-col lg:pl-68">
             <Sidebar
@@ -19,7 +23,7 @@ export default async function AdminLayout({ children }) {
                 roleLabel={ROLE_LABELS[user.role]}
                 logoutAction={logoutAction}
                 logoutAllAction={logoutAllAction}
-                badges={{ pendingAdmissions }}
+                badges={{ pendingAdmissions, pendingReviews }}
             />
             <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-8 sm:px-8 lg:py-10">
                 {children}

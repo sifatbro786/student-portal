@@ -27,6 +27,7 @@
 
     --font-serif: var(--font-fraunces), "Iowan Old Style", Georgia, serif;
     --font-sans: var(--font-manrope), ui-sans-serif, system-ui, sans-serif;
+    --font-hand: var(--font-caveat), "Segoe Print", "Bradley Hand", cursive;
 
     --ease-editorial: cubic-bezier(0.22, 1, 0.36, 1);
 }
@@ -152,4 +153,64 @@
     & hr {
         border-color: var(--color-line);
     }
+}
+
+/* ------------------------------------------------------------------ public site (P8) */
+
+/* Scroll reveal with zero JS: CSS scroll-driven animations where supported,
+   otherwise content is simply visible. Reduced motion → no animation (rule above). */
+@keyframes reveal-up {
+    from {
+        opacity: 0;
+        transform: translateY(24px);
+    }
+    to {
+        opacity: 1;
+        transform: none;
+    }
+}
+@utility reveal {
+    @supports (animation-timeline: view()) {
+        @media (prefers-reduced-motion: no-preference) {
+            animation: reveal-up linear both;
+            animation-timeline: view();
+            animation-range: entry 0% entry 40%;
+        }
+    }
+}
+
+/* Faculty marquee: 30s linear loop, masked edges; static for reduced motion. */
+@keyframes marquee {
+    to {
+        transform: translateX(-50%);
+    }
+}
+@utility animate-marquee {
+    animation: marquee 32s linear infinite;
+    @media (prefers-reduced-motion: reduce) {
+        animation: none;
+    }
+}
+@utility mask-fade-x {
+    mask-image: linear-gradient(to right, transparent, #000 8%, #000 92%, transparent);
+}
+
+/* Exercise-book lines behind the numbered highlights. */
+@utility ruled {
+    background-image:
+        linear-gradient(to right, transparent 2.75rem, color-mix(in srgb, var(--color-burgundy) 35%, transparent) 2.75rem, color-mix(in srgb, var(--color-burgundy) 35%, transparent) calc(2.75rem + 1px), transparent calc(2.75rem + 1px)),
+        repeating-linear-gradient(to bottom, transparent 0, transparent calc(2rem - 1px), color-mix(in srgb, #5b7fa6 22%, transparent) calc(2rem - 1px), color-mix(in srgb, #5b7fa6 22%, transparent) 2rem);
+}
+
+/* Handwritten note */
+@utility font-hand {
+    font-family: var(--font-hand);
+    font-weight: 600;
+}
+
+/* Masking tape strip (portrait, notes) */
+@utility tape {
+    background: color-mix(in srgb, var(--color-gold-light) 70%, transparent);
+    box-shadow: 0 1px 2px rgb(31 26 23 / 0.08);
+    mask-image: linear-gradient(90deg, transparent 0 2px, #000 2px calc(100% - 2px), transparent calc(100% - 2px));
 }

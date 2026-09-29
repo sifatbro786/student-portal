@@ -1,6 +1,6 @@
 import "server-only";
 import { createHash, randomUUID } from "node:crypto";
-import { copyFile, mkdir, stat, writeFile } from "node:fs/promises";
+import { copyFile, mkdir, stat, unlink, writeFile } from "node:fs/promises";
 import { createReadStream } from "node:fs";
 import path from "node:path";
 import { Readable } from "node:stream";
@@ -114,6 +114,69 @@ export async function saveImage(file, { dirKey, maxBytes, square }) {
         size: out.length,
         sha256: sha256(out),
     };
+}
+
+/**
+ * One upload → several WebP sizes (gallery, hero photo). Same checks as saveImage;
+ * returns each variant's FileRef plus its real pixel size (lets pages reserve space).
+ * All-or-nothing: a failure removes the variants already written.
+ * @param {File} file
+ * @param {{ dirKey: string, maxBytes: number, variants: { name: string, max: number }[], field?: string }} opts
+ * @returns {Promise<Record<string, { ref: object, width: number, height: number }>>}
+ */
+export async function saveImageSet(file, { dirKey, maxBytes, variants, field = "photo" }) {
+    if (!file || typeof file === "string" || file.size === 0) {
+        throw new ServiceError("no_file", "Please choose a photo.", field);
+    }
+    if (file.size > maxBytes) {
+        throw new ServiceError(
+            "too_large",
+            `Each photo must be ${Math.round(maxBytes / 1048576)} MB or smaller.`,
+            field,
+        );
+    }
+    const input = Buffer.from(await file.arrayBuffer());
+    const type = await fileTypeFromBuffer(input);
+    if (!type || !IMAGE_MIMES.includes(type.mime)) {
+        throw new ServiceError("bad_type", "Photos must be JPG, PNG or WebP images.", field);
+    }
+    const written = [];
+    const out = {};
+    try {
+        for (const v of variants) {
+            let res;
+            try {
+                res = await sharp(input, { limitInputPixels: 40_000_000, failOn: "error" })
+                    .rotate()
+                    .resize(v.max, v.max, { fit: "inside", withoutEnlargement: true })
+                    .webp({ quality: 80 })
+                    .toBuffer({ resolveWithObject: true });
+            } catch {
+                throw new ServiceError(
+                    "bad_image",
+                    "This image could not be read. Try another photo.",
+                    field,
+                );
+            }
+            const key = await writeUnder(dirKey, `${randomUUID()}.webp`, res.data);
+            written.push(key);
+            out[v.name] = {
+                ref: {
+                    key,
+                    originalName: cleanName(file.name),
+                    mime: "image/webp",
+                    size: res.data.length,
+                    sha256: sha256(res.data),
+                },
+                width: res.info.width,
+                height: res.info.height,
+            };
+        }
+    } catch (err) {
+        await Promise.all(written.map((k) => unlink(resolveKey(k)).catch(() => {})));
+        throw err;
+    }
+    return out;
 }
 
 /**

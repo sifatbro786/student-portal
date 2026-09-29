@@ -12,6 +12,7 @@ import { Notice } from "@/server/models/Notice.js";
 import { Assignment } from "@/server/models/Assignment.js";
 import { Submission } from "@/server/models/Submission.js";
 import { getAssignmentForStudent } from "@/server/services/assignments.js";
+import { testimonialPhotoFor } from "@/server/services/testimonials.js";
 import { log } from "@/server/log.js";
 
 export const runtime = "nodejs";
@@ -96,6 +97,16 @@ export async function GET(request, { params }) {
             const inline =
                 !download && /^(application\/pdf|image\/(jpeg|png|webp))$/.test(ref.mime);
             return streamStored(ref, { download: !inline });
+        }
+
+        // ---------------------------------------------------------- review photo (P8)
+        // Private until approved (the public copy lives under /media). Admin or the author.
+        if (kind === "testimonial-photo") {
+            const user = await getCurrentUser();
+            const admin = isAdmin(user);
+            const scope = admin ? null : await findStudentScope();
+            const ref = await testimonialPhotoFor(id, { isAdmin: admin, scope });
+            return ref?.key ? streamStored(ref) : notFound();
         }
 
         const user = await getCurrentUser();

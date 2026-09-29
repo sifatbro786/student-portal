@@ -5,9 +5,9 @@
 > Brand: শুধু Tauhid Mostafa personal brand (MIE Academy নয়) — [DECIDED]।
 
 ## ▶ START HERE (new chat)
-- **Next phase: P8 — Public site & SEO.** P1–P7 done and delivered to the repo.
+- **Next phase: P9 — Hardening & deploy.** P1–P8 done and delivered to the repo.
 - Before coding, read **HANDOVER.md** (project doc): working method, environment, conventions, next-phase checklist.
-- Repo on the user's PC: `E:\Works\Tauhid Mostafa\tauhid-mostafa` (via the device bridge). Read the repo's `CLAUDE.md` first.
+- Repo on the user's PC: **`D:\Projects\student-portal`** (moved from `E:\Works\Tauhid Mostafa\tauhid-mostafa` on 2026-09-29; via the device bridge). Read the repo's `CLAUDE.md` first.
 
 ## Status
 - ✅ P1 Foundation — 2026-09-28
@@ -20,8 +20,8 @@
 - ✅ P6 Results & Honor Board — 2026-09-29 (exams CRUD, result grid + bulk save, CSV import with row report, stats, student results + dashboard card; honor admin with photos 600/200, consent, reorder, year headings, add-from-student, cached public reader tag `honor` + admin preview; `/media` dev fallback; `npm run seed:honor`; 38 service + 31 e2e checks)
 - ✅ Student portal shell — 2026-09-29: same sidebar system as the admin (fixed sidebar ≥ lg, top bar + drawer on phones); dashboard home redesigned as a 2-column layout; bottom tab bar removed
 - ✅ P7 Payments — 2026-09-29 (idempotent monthly generation + create/reactivate hooks + cron 00:05 day 1 + `npm run fees:generate`; matrix with sticky header/column, confirm popover, totals; list with filters, bulk, streamed CSV; audit per change; admin dashboard cards §4.13; 21 service + 15 e2e checks)
-- ⏭ **P8 Public site & SEO — next, not started**
-- ⏳ P9
+- ✅ P8 Public site & SEO — 2026-09-29 (SiteContent CMS + hero photo; homepage in 10 sections; `/honor-board`, `/gallery`, `/notices`, `/notices/[slug]`; **Testimonials** (student writes → admin approves) + **Gallery** (admin upload, placeholders); honor photos cropped from the client's poster; metadata, sitemap, robots, JSON-LD, OG image; Lighthouse mobile `/`: perf 96 · a11y 100 · best-practices 100 · SEO 100; 18 service + 36 e2e checks)
+- ⏭ **P9 Hardening & deploy — next, not started**
 
 ## Decisions after the PRD
 - [DECIDED 2026-09-28] **No Cloudflare Turnstile.** FR-ADM-05 anti-spam = honeypot + signed min-fill-time token + 3/IP/hour rate limit + Nginx limit_req.
@@ -33,7 +33,12 @@
 - Logo: transparent PNGs cut from the client JPEG → `public/brand/`. Ask the client for an SVG.
 - Public /notices pages are built in P8 (service `listPublicNotices()` is ready).
 - Admin UI = left sidebar (professional, student-friendly). Nav grows per phase in `components/admin/nav.js` (only link modules that exist). Account = one-row dropdown at the bottom (Change password / Log out of all devices / Log out).
-- [NOTED 2026-09-29 — scope in P8] Homepage **may** get **Testimonials** and **Gallery** sections. PRD additions (need CMS models + admin UI + image upload + consent for student photos). Confirm exact scope with the user at the start of P8. Testimonials must be real, with permission — never invented.
+- [DECIDED 2026-09-29 — client via Sifat, P8] **Testimonials** are in: students write a review in the portal (`/dashboard/review`: rating 1–5, text 40–600 chars, optional result line, optional own photo, consent tick); admin approves/rejects/edits typos at `/admin/reviews`; only approved + consented reviews reach the homepage. One review per student; any edit sends it back to pending (off the homepage). No `aggregateRating` in JSON-LD (Google self-review policy).
+- [DECIDED 2026-09-29 — client] **Student-uploaded own photos ≤ 1 MB** (review photo only — assignment files keep their 20 MB limit). Checked in the browser, the action and `saveImage` (magic bytes). The photo stays private under `private/students/<id>/testimonial/` until approval, which copies it to `public/testimonials/`; unapprove/edit/delete/purge removes the public copy.
+- [DECIDED 2026-09-29 — client] **Gallery page** is in: admin uploads (≤ 12 photos / request, 10 MB each, 64 MB request cap), categories classroom/students/events, "cleared for public display" tick required to publish, "Homepage" flag + drag order feed the homepage collage (first 6). Temporary Unsplash placeholders via `npm run seed:gallery` (flagged, one-click "Remove placeholders").
+- [DECIDED 2026-09-29 — Sifat] Honor 2026 photos were cropped from the client's printed board (`scripts/data/honor-2026/`, `npm run seed:honor-photos`) and published with consentConfirmed — the client supplied the board for public display. Replace with originals when the client sends them.
+- [DECIDED — P8] SiteContent `contact.venue`/`mapEmbedUrl` → `campuses[]` (two campuses). Map links must be Google Maps embed URLs (CSP in P9 must allow `https://www.google.com` frames). Social links must be the platform's own https domain.
+- [DECIDED — P8] Homepage order: Hero → "Taught at" marquee → Honor Board → About + numbered highlights → Education & experience → Reviews → Gallery collage → Notice board → Classes & campuses (maps) → CTA. Section backgrounds alternate paper / burgundy / paper-deep / ink / burgundy-tint so the page is never flat white.
 - Demo data: `npm run seed:demo` (all `@demo.test`, password `Demo@1234`); `-- --reset` removes it. Refuses when NODE_ENV=production unless `--allow-production`. Extend the seed in each phase (P5: 5 assignments + 4 submissions; P6: 3 exams with results; P7: fee records).
 - [DECIDED 2026-09-29 — P5] Submission files live at `private/students/<studentId>/submissions/<assignmentId>/` (PRD §8 layout; HANDOVER had a different path — PRD wins). Student purge already removes them with the student folder. Assignment attachments: `private/assignments/<id>/`.
 - [DECIDED — P5] Student uploads are streamed to disk with `busboy` (`server/storage/submissions.js`), never buffered in memory (5 × 20 MB per request). Staging folder `UPLOAD_ROOT/tmp/uploads` — P9 cleanup job should delete staged files older than 1 day (left only if the process crashes mid-upload).
@@ -64,7 +69,7 @@
 | Heading font | PRD: serif display (Fraunces) headings; sans (Manrope) UI। Skill এর "one italic serif accent" → hero তে একটা italic phrase। |
 | Hero | Teacher এর real photo, lower-left headline + CTA, paper texture। Blob/gradient hero ❌। |
 | Logo rail | "Ex-faculty: Scholastica · Mastermind · Hurdco · Sunnydale" + Cambridge/Edexcel — typographic marquee, 30s linear, gradient mask, reduced-motion এ static। |
-| Testimonials / Gallery | User চেয়েছেন (2026-09-29) → P8 এ scope confirm করে build। শুধু real testimonial; editorial quote layout (auto-carousel না)। Gallery = real class photos, lazy, consent সহ। |
+| Testimonials / Gallery | ✅ P8: index-card reviews (tape, slight tilt, large lead quote), no carousel. Gallery = masonry + native `<dialog>` lightbox, consent tick. Handwritten accent = Caveat (one note per section max). |
 | Count-up numbers / gradient text | ❌ (PRD)। |
 | Motion | Skill: reveal 700–900ms `cubic-bezier(.22,1,.36,1)`, hover lift ≤ 4px, `prefers-reduced-motion` respect। ✅ |
 | Verification | Skill checklist (390/768/1440, no overflow, no console error, build pass) প্রতিটা UI phase এ। ✅ |
@@ -108,15 +113,16 @@
 - **P7.4** Admin dashboard cards (active students, pending admissions, submissions 7d, due this month)।
 - **Done when:** cron দুবার চালালেও duplicate নেই; batch change এর পর পুরনো মাস ঠিক থাকে।
 
-## P8 — Public site & SEO ⏭ NEXT
+## P8 — Public site & SEO ✅
 - **P8.1** SiteContent CMS (singleton, seed from CLIENT-INFO: bio, ex-faculty, 17+ yrs, 2 campuses, phone, email)।
 - **P8.2** Homepage: Hero → Honor Board → About → Education → Experience timeline → Notice Board → Class info/venues/map → Contact/WhatsApp। Faculty marquee, numbered highlights (01–04)। **+ Testimonials / Gallery if confirmed.**
 - **P8.3** `/honor-board` (year index-tabs), `/notices`, `/notices/[slug]`।
 - **P8.4** Metadata, sitemap, robots, JSON-LD (Person, LocalBusiness, ItemList), OG image।
 - **Done when:** Lighthouse mobile ≥ 90 perf / 100 SEO / ≥ 95 a11y on `/`।
 
-## P9 — Hardening & deploy
+## P9 — Hardening & deploy ⏭ NEXT
 - CSP + security headers, `error.js`/`not-found.js`, structured logs, audit log UI (super_admin), file cleanup job, `npm audit`।
+- From P8: CSP `frame-src https://www.google.com` (campus maps), `img-src 'self' data: blob:`; Nginx `client_max_body_size 64m` for `/api/admin/gallery`; `/media` now also serves `gallery/`, `testimonials/`, `site/`. Run `npm run seed:site` + `seed:honor` + `seed:honor-photos` on the VPS; remove gallery placeholders once real photos exist.
 - VPS: Mongo replica set, Nginx (`/media`, limit_req, body size, **`X-Real-IP` header — rate limits depend on it**), PM2 (`web` + `cron`), certbot, UFW/fail2ban, `backup.sh` + **restore test**, handover doc। Vercel preview বন্ধ করা।
 - **Done when:** §11 checklist ticked; restore verified।
 
@@ -128,5 +134,6 @@
 | Honor board student photos + guardian consent | P6 |
 | Logo (SVG), teacher professional photos | P8 |
 | Bio, education details (degree/institution/year) | P8 |
-| Real testimonials (with permission) + gallery photos | P8 (if confirmed) |
+| Real class photos for the gallery (replace Unsplash placeholders) + original honor photos | before launch |
+| Professional portrait (current hero = straightened crop of `tauhid.jpeg`) | before launch |
 | Domain + Hostinger VPS access | P9 |

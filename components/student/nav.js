@@ -28,6 +28,9 @@ export const STUDENT_NAV = [
     },
     {
         label: "Account",
-        items: [{ href: "/dashboard/profile", label: "My profile", icon: "UserRound" }],
+        items: [
+            { href: "/dashboard/profile", label: "My profile", icon: "UserRound" },
+            { href: "/dashboard/review", label: "My review", icon: "MessageSquareQuote" },
+        ],
     },
 ];

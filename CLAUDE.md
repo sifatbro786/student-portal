@@ -43,3 +43,9 @@
 - Avoid `$avg`/`$max` in aggregations while testing on FerretDB; small per-exam stats are computed in JS.
 - Payments (P7): `generateFeeRecords(period)` is the only way records are created (bulk upsert + `$setOnInsert` snapshots — idempotent). Status changes go through `setFeeStatus`/`bulkSetFeeStatus` (they write the audit log). Nothing about fees is ever imported by student pages.
 - FerretDB (test DB) also lacks `$push`; group in JS or verify an accumulator before relying on it.
+- Public site (P8): pages read ONLY through `server/services/site-public.js` (cached, tags `site-content`, `honor`, `testimonials`, `gallery`, `notices-public`; DB errors fall back instead of 500). Every mutation of that data must `updateTag(tag)` (actions) or `revalidateTag(tag, { expire: 0 })` (route handlers) — incl. notice save/delete and student purge.
+- Site text lives in the SiteContent singleton (`/admin/site-content`); `lib/site-defaults.js` is only the seed/fallback. Never hardcode teacher info in components.
+- Reviews: one per student; student edit → pending; admin moderation is version-checked (`version` = submittedAt the admin saw). Photos: student upload ≤ 1 MB, private until approved, public copy in `public/testimonials/`.
+- Gallery: `saveImageSet()` stores 1600 + 800 WebP with real width/height (no CLS). Publishing requires `consentConfirmed`.
+- `buttonClass({ className })` can't override `display`/`bg` of a variant (Tailwind order) — wrap in an element or add a variant (`paper`, `outlineLight`).
+- Public design: paper/burgundy/ink bands, serif headings with ONE italic accent, gold rule, Caveat (`font-hand`) for at most one handwritten note per section, `reveal` utility (CSS scroll-driven, no JS). No glass, gradient text, count-ups or carousels.

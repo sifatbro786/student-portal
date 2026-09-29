@@ -1,8 +1,10 @@
+import { revalidateTag } from "next/cache";
 import { adminUpload } from "@/server/admin-route.js";
 import { json } from "@/server/http.js";
 import { objectId } from "@/server/validators/common.js";
 import { NOTICE_FIELDS, noticeSchema } from "@/server/validators/content.js";
 import { NOTICE_ATTACHMENT_MAX, saveNotice } from "@/server/services/notices.js";
+import { NOTICES_PUBLIC_TAG } from "@/server/services/site-public.js";
 
 export const runtime = "nodejs";
 
@@ -17,6 +19,10 @@ export async function POST(request, { params }) {
             fields: NOTICE_FIELDS,
             context: "notice.update",
         },
-        (data, form, actor) => saveNotice(id.data, data, form.get("attachment"), actor),
+        async (data, form, actor) => {
+            const res = await saveNotice(id.data, data, form.get("attachment"), actor);
+            revalidateTag(NOTICES_PUBLIC_TAG, { expire: 0 }); // homepage + /notices
+            return res;
+        },
     );
 }

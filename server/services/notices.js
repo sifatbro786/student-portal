@@ -272,3 +272,12 @@ export async function listPublicNotices({ limit = 5 } = {}) {
         .select("title slug body isPinned publishAt")
         .lean();
 }
+
+/** One public, live notice by slug (public /notices/[slug]). */
+export async function getPublicNoticeBySlug(slug) {
+    if (typeof slug !== "string" || !/^[a-z0-9-]{1,120}$/.test(slug)) return null;
+    await connectDB();
+    return Notice.findOne({ slug, audience: "public", ...liveFilter() })
+        .select("title slug body isPinned publishAt expiresAt attachment updatedAt")
+        .lean();
+}

@@ -38,7 +38,17 @@ export const ADMIN_NAV = [
     },
     {
         label: "Website",
-        items: [{ href: "/admin/honor-board", label: "Honor board", icon: "Award" }],
+        items: [
+            { href: "/admin/site-content", label: "Site content", icon: "PanelsTopLeft" },
+            { href: "/admin/honor-board", label: "Honor board", icon: "Award" },
+            { href: "/admin/gallery", label: "Gallery", icon: "Images" },
+            {
+                href: "/admin/reviews",
+                label: "Reviews",
+                icon: "MessageSquareQuote",
+                badge: "pendingReviews",
+            },
+        ],
     },
     {
         label: "Settings",

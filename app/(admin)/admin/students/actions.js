@@ -1,7 +1,9 @@
 "use server";
 
 import { redirect } from "next/navigation";
-import { refresh } from "next/cache";
+import { refresh, updateTag } from "next/cache";
+import { HONOR_TAG } from "@/server/services/honor.js";
+import { TESTIMONIAL_TAG } from "@/server/services/testimonials.js";
 import { requireAuth } from "@/server/auth/guards.js";
 import { errorState, parseOrState, pickForm } from "@/server/action-utils.js";
 import { objectId } from "@/server/validators/common.js";
@@ -116,6 +118,9 @@ export async function purgeStudentAction(id, _prev, formData) {
     } catch (err) {
         return errorState(err, "student.purge", raw);
     }
+    // Their review and (if chosen) honor entries leave the public site now, not in an hour.
+    updateTag(TESTIMONIAL_TAG);
+    updateTag(HONOR_TAG);
     redirect("/admin/students?purged=1");
 }
 
