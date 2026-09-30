@@ -11,16 +11,19 @@ The step-by-step server guide is given in P9 Step 2 (server) and Step 3 (app + b
 | `deploy.sh` | every release: pull → `npm ci` → lint/syntax → build → assemble standalone → reload → health check |
 | `backup.sh` | daily 02:00 (crontab): `mongodump` + uploads tar, 14 daily + 8 weekly, optional rclone off-site |
 | `restore.sh` | restore test into `<db>_restore_test` (default) or `--live` disaster recovery |
-| `env.production.example` | template for `/var/www/tm/app/.env` (chmod 600) |
+| `env.production.example` | template for `/var/www/student-portal/.env` (chmod 600) |
 
 Folders on the server:
 
 ```
-/var/www/tm/app            ← this repo (owner: tm)
-/var/www/tm/data/uploads   ← UPLOAD_ROOT (public/ is served at /media; private/ never)
-/var/www/tm/backups        ← backup.sh output (chmod 700)
+/var/www/student-portal    ← this repo (owner: tm)
+/var/www/tm-data/uploads   ← UPLOAD_ROOT (ONLY uploads/public/ is served at /media; private/ never)
+/var/www/tm-data/backups   ← backup.sh output (chmod 700)
 /var/www/certbot           ← Let's Encrypt webroot
 ```
 
 After the first deploy, once (production-safe seeds): `npm run seed:admin`, `seed:site`, `seed:seo`,
 `seed:honor`, `seed:honor-photos`. Never run `seed:demo` in production.
+
+Checks on the server: `npm run check:media` (DB records whose files are missing on this disk),
+`npm run mail:test -- you@example.com`, `pm2 status` (must show `web` AND `cron` online).

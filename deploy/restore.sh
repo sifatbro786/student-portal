@@ -2,8 +2,8 @@
 # Restore a backup made by backup.sh.
 #
 # TEST restore (default, safe — production is not touched):
-#   deploy/restore.sh /var/www/tm/backups/daily/db-2026-10-05_0200.archive.gz \
-#                     /var/www/tm/backups/daily/uploads-2026-10-05_0200.tar.gz
+#   deploy/restore.sh /var/www/tm-data/backups/daily/db-2026-10-05_0200.archive.gz \
+#                     /var/www/tm-data/backups/daily/uploads-2026-10-05_0200.tar.gz
 #   → database copied into "<db>_restore_test", files into /tmp/tm-restore-test,
 #     then document counts of both databases are printed side by side.
 #

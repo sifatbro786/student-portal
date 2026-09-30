@@ -17,6 +17,7 @@
         "seed:site": "node --conditions=react-server --env-file=.env scripts/seed-site.js",
         "seed:seo": "node --conditions=react-server --env-file=.env scripts/seed-seo.js",
         "seed:gallery": "node --conditions=react-server --env-file=.env scripts/seed-gallery.js",
+        "check:media": "node --conditions=react-server --env-file=.env scripts/check-media.js",
         "cleanup:files": "node --conditions=react-server --env-file=.env scripts/cleanup-files.js",
         "fees:generate": "node --conditions=react-server --env-file=.env scripts/fees-generate.js"
     },

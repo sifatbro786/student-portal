@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Daily backup (PRD §10): database + uploaded files. Run by the app user's crontab at 02:00:
-#   0 2 * * * /var/www/tm/app/deploy/backup.sh >> /var/www/tm/backups/backup.log 2>&1
+#   0 2 * * * /var/www/student-portal/deploy/backup.sh >> /var/www/tm-data/backups/backup.log 2>&1
 # Keeps 14 daily + 8 weekly (Sunday) copies locally, then copies the day's files off the
 # server with rclone when RCLONE_REMOTE is set (e.g. RCLONE_REMOTE=gdrive:tm-backups).
 # A backup that has never been restored is not a backup — see deploy/restore.sh.
@@ -9,7 +9,7 @@ trap 'echo "[$(date +%F_%H%M)] ✗ backup FAILED at line $LINENO" >&2' ERR
 APP="$(cd "$(dirname "$0")/.." && pwd)"
 set -a; . "$APP/.env"; set +a
 
-DEST="${BACKUP_DIR:-/var/www/tm/backups}"
+DEST="${BACKUP_DIR:-/var/www/tm-data/backups}"
 TS="$(TZ=Asia/Dhaka date +%F_%H%M)"
 mkdir -p "$DEST/daily" "$DEST/weekly"
 umask 077 # backups hold personal data: owner-only
