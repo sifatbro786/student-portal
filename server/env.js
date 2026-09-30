@@ -59,3 +59,30 @@ export function env() {
 }
 
 export const isProd = () => process.env.NODE_ENV === "production";
+
+/**
+ * Called once when the web server boots (instrumentation.js). Invalid env → the process
+ * exits now with a clear message instead of failing on the first request. In production
+ * it also warns about settings that silently break features.
+ */
+export function checkEnvAtBoot() {
+    const e = env(); // throws with the list of bad keys
+    if (!isProd()) return;
+    const warn = (msg) =>
+        console.warn(
+            JSON.stringify({
+                level: "warn",
+                msg: "env.warning",
+                at: new Date().toISOString(),
+                detail: msg,
+            }),
+        );
+    if (!e.APP_URL.startsWith("https://"))
+        warn("APP_URL is not https:// — canonical URLs, sitemap and emails will use http.");
+    if (!e.SMTP_HOST || !e.SMTP_USER || !e.SMTP_PASS)
+        warn("SMTP is not configured — emails are only logged, never sent.");
+    if (e.ADMIN_NOTIFY_EMAILS.length === 0)
+        warn("ADMIN_NOTIFY_EMAILS is empty — nobody receives admission alerts.");
+    if (process.env.MONGO_TRANSACTIONS === "off")
+        warn("MONGO_TRANSACTIONS=off is ignored in production (a replica set is required).");
+}

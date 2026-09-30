@@ -37,7 +37,19 @@ export const resetLimit = (key) => store.delete(key);
  * @param {Headers} h
  */
 export function getClientIp(h) {
-    return h.get("x-real-ip")?.trim() || "unknown";
+    const ip = h.get("x-real-ip")?.trim();
+    if (!ip && process.env.NODE_ENV === "production" && !globalThis.__tmWarnedNoRealIp) {
+        globalThis.__tmWarnedNoRealIp = true; // once per process
+        console.warn(
+            JSON.stringify({
+                level: "warn",
+                msg: "rate_limit.no_real_ip",
+                at: new Date().toISOString(),
+                detail: "X-Real-IP missing — all visitors share one rate-limit bucket. Run behind Nginx (deploy/nginx).",
+            }),
+        );
+    }
+    return ip || "unknown";
 }
 
 /** Keyed hash for storing IPs without keeping the raw value. */

@@ -4,6 +4,7 @@
 import cron from "node-cron";
 import { mailStatus, processMailQueue, verifySmtp } from "../server/mail/worker.js";
 import { generateFeeRecords } from "../server/services/payments.js";
+import { runFileCleanup } from "../server/services/cleanup.js";
 import { log } from "../server/log.js";
 
 const TZ = "Asia/Dhaka";
@@ -37,8 +38,15 @@ cron.schedule(
     { timezone: TZ },
 );
 
+// PRD §10: 03:00 daily — failed deletions, stale staged uploads, old watermark copies.
+cron.schedule(
+    "0 3 * * *",
+    guarded("cleanup", () => runFileCleanup()),
+    { timezone: TZ },
+);
+
 log.info("cron.started", {
-    jobs: ["mail (every minute)", "fees (00:05 on day 1)"],
+    jobs: ["mail (every minute)", "fees (00:05 on day 1)", "file cleanup (03:00 daily)"],
     tz: TZ,
 });
 // If the server was down at 00:05 on the 1st, catch up now (no duplicates possible).

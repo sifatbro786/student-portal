@@ -17,9 +17,14 @@ function getTransport() {
         host: e.SMTP_HOST,
         port: e.SMTP_PORT,
         secure: e.SMTP_PORT === 465,
+        requireTLS: e.SMTP_PORT !== 465, // 587 → STARTTLS, never plain text
         auth: { user: e.SMTP_USER, pass: e.SMTP_PASS },
         pool: true,
         maxConnections: 2,
+        // Fail in seconds, not minutes, when the port is blocked or the host is wrong.
+        connectionTimeout: 15_000,
+        greetingTimeout: 15_000,
+        socketTimeout: 30_000,
     });
     return transport;
 }

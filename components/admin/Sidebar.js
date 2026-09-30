@@ -16,6 +16,7 @@ import {
     Images,
     MessageSquareQuote,
     SearchCheck,
+    ScrollText,
     ChevronsUpDown,
     ClipboardCheck,
     ClipboardList,
@@ -49,6 +50,7 @@ const ICONS = {
     Images,
     MessageSquareQuote,
     SearchCheck,
+    ScrollText,
     // student portal
     Home,
     FileQuestion,

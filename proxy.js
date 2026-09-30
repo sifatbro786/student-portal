@@ -11,6 +11,8 @@ import {
 // re-checked on the server (SEC-03): requireAuth() hits the DB every request.
 export async function proxy(request) {
     const { pathname } = request.nextUrl;
+    // Request id for log correlation: Nginx sets X-Request-ID in production; locally we mint one.
+    const reqId = request.headers.get("x-request-id") || crypto.randomUUID();
     const token = request.cookies.get(SESSION_COOKIE)?.value;
     const session = await verifySessionToken(token);
 
@@ -21,6 +23,7 @@ export async function proxy(request) {
     if (isProtected && !session) {
         const res = NextResponse.redirect(new URL("/login", request.url));
         if (token) res.cookies.delete(SESSION_COOKIE); // expired or tampered
+        res.headers.set("x-request-id", reqId);
         return res;
     }
 
@@ -32,7 +35,10 @@ export async function proxy(request) {
         return NextResponse.redirect(new URL(homeForRole(session.role), request.url));
     }
 
-    const res = NextResponse.next();
+    const forwarded = new Headers(request.headers);
+    forwarded.set("x-request-id", reqId);
+    const res = NextResponse.next({ request: { headers: forwarded } });
+    res.headers.set("x-request-id", reqId);
     if (session && needsRefresh(session.exp)) {
         const fresh = await signSessionToken({
             sub: session.sub,

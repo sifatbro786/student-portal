@@ -54,6 +54,9 @@ export const ADMIN_NAV = [
     {
         label: "Settings",
         superAdminOnly: true,
-        items: [{ href: "/admin/admins", label: "Admins", icon: "ShieldCheck" }],
+        items: [
+            { href: "/admin/admins", label: "Admins", icon: "ShieldCheck" },
+            { href: "/admin/audit-log", label: "Audit log", icon: "ScrollText" },
+        ],
     },
 ];
